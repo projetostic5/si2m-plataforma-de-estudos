@@ -1,0 +1,152 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export type Profile = {
+  id: string;
+  full_name: string;
+  role: 'admin' | 'student';
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Discipline = {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type Dimension = {
+  id: string;
+  discipline_id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+};
+
+export type Theme = {
+  id: string;
+  dimension_id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+};
+
+export type Topic = {
+  id: string;
+  theme_id: string;
+  name: string;
+  created_at: string;
+};
+
+export type Question = {
+  id: string;
+  discipline_id: string;
+  dimension_id: string;
+  theme_id: string;
+  topic_id?: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  option_e?: string;
+  correct_answer: 'a' | 'b' | 'c' | 'd' | 'e';
+  explanation?: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  specialty?: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  discipline?: Discipline;
+  dimension?: Dimension;
+  theme?: Theme;
+  topic?: Topic;
+};
+
+export type StudentProfile = {
+  id: string;
+  user_id: string;
+  available_hours_per_week: number;
+  preferred_study_times?: string[];
+  next_exam_date?: string;
+  study_style: 'intensive' | 'balanced' | 'relaxed';
+  learning_preferences?: string[];
+  additional_notes?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Exam = {
+  id: string;
+  name: string;
+  description?: string;
+  discipline_id: string;
+  duration_minutes: number;
+  total_questions: number;
+  passing_score: number;
+  is_active: boolean;
+  is_public: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  discipline?: Discipline;
+};
+
+export type ExamQuestion = {
+  id: string;
+  exam_id: string;
+  question_id: string;
+  question_order: number;
+  created_at: string;
+  question?: Question;
+};
+
+export type ExamAttempt = {
+  id: string;
+  exam_id: string;
+  user_id: string;
+  started_at: string;
+  completed_at?: string;
+  time_spent_seconds?: number;
+  total_score: number;
+  percentage: number;
+  passed: boolean;
+  created_at: string;
+  exam?: Exam;
+};
+
+export type ExamAnswer = {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  selected_answer?: 'a' | 'b' | 'c' | 'd' | 'e';
+  is_correct?: boolean;
+  time_spent_seconds?: number;
+  created_at: string;
+  question?: Question;
+};
+
+export type StudyRecommendation = {
+  id: string;
+  attempt_id: string;
+  dimension_id: string;
+  theme_id?: string;
+  incorrect_count: number;
+  total_questions: number;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  recommended_hours: number;
+  study_notes?: string;
+  created_at: string;
+  dimension?: Dimension;
+  theme?: Theme;
+};
