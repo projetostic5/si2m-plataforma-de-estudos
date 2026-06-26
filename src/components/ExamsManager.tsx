@@ -117,7 +117,12 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este simulado?')) return;
-    await supabase.from('exams').delete().eq('id', id);
+    const { error } = await supabase.from('exams').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao excluir simulado:', error);
+      alert('Erro ao excluir simulado: ' + error.message);
+      return;
+    }
     fetchExams();
   };
 

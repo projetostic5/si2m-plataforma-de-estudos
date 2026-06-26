@@ -231,7 +231,12 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta disciplina?')) return;
-    await supabase.from('disciplines').delete().eq('id', id);
+    const { error } = await supabase.from('disciplines').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao excluir disciplina:', error);
+      alert('Erro ao excluir disciplina: ' + error.message);
+      return;
+    }
     onUpdate();
   };
 

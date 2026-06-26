@@ -146,7 +146,12 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta questao?')) return;
-    await supabase.from('questions').delete().eq('id', id);
+    const { error } = await supabase.from('questions').delete().eq('id', id);
+    if (error) {
+      console.error('Erro ao excluir questao:', error);
+      alert('Erro ao excluir questao: ' + error.message);
+      return;
+    }
     fetchQuestions();
   };
 
