@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, Exam, StudentProfile, ExamAttempt, StudyRecommendation } from '../lib/supabase';
+import { supabase, Exam, StudentProfile, ExamAttempt } from '../lib/supabase';
 import {
   GraduationCap,
   BookOpen,
   Clock,
-  Calendar,
   Target,
   TrendingUp,
   LogOut,
@@ -26,8 +26,18 @@ import { ExamResults } from './ExamResults';
 type Tab = 'dashboard' | 'exams' | 'profile' | 'history';
 
 export function StudentDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
   const { profile, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === '/estudante/simulados') setActiveTab('exams');
+    else if (path === '/estudante/resultados') setActiveTab('history');
+    else if (path === '/estudante/configuracoes') setActiveTab('profile');
+    else setActiveTab('dashboard');
+  }, [location.pathname]);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [recentAttempts, setRecentAttempts] = useState<ExamAttempt[]>([]);
@@ -92,6 +102,17 @@ export function StudentDashboard() {
     { id: 'profile', label: 'Meu Perfil', icon: User },
   ];
 
+  const handleNav = (tabId: string) => {
+    setActiveTab(tabId as Tab);
+    const pathMap: Record<string, string> = {
+      dashboard: '/estudante',
+      exams: '/estudante/simulados',
+      history: '/estudante/resultados',
+      profile: '/estudante/configuracoes',
+    };
+    navigate(pathMap[tabId] || '/estudante');
+  };
+
   if (activeExamId) {
     return <ExamTaking examId={activeExamId} onComplete={handleExamComplete} onCancel={() => setActiveExamId(null)} />;
   }
@@ -121,7 +142,7 @@ export function StudentDashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as Tab)}
+                  onClick={() => handleNav(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                     activeTab === item.id
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
