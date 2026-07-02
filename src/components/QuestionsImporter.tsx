@@ -44,6 +44,116 @@ export function QuestionsImporter({
   const [importStats, setImportStats] = useState({ success: 0, error: 0 });
 
   const parseQuestions = (text: string): ParsedQuestion[] => {
+    const questions: ParsedQuestion[] = [];
+    let questionNumber = 0;
+
+    // Normaliza quebras de linha
+    const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // Divide por questões (procura por padrão de início de questão)
+    // Padrões aceitos: "1.", "1)", "Questão 1", "Questão 1:", "1 -"
+    const questionPattern = /(?:^|\n)\s*(?:(?:Questão|Questao|QUESTÃO|QUESTÃO)\s*)?(\d+)\s*[).\-\:]\s*/gi;
+
+    let match;
+    const questionStarts: { index: number; number: number }[] = [];
+
+    while ((match = questionPattern.exec(normalizedText)) !== null) {
+      questionStarts.push({
+        index: match.index,
+        number: parseInt(match[1])
+      });
+    }
+
+    if (questionStarts.length === 0) {
+      // Tenta parsing linha por linha como fallback
+      return parseQuestionsLineByLine(normalizedText);
+    }
+
+    for (let i = 0; i < questionStarts.length; i++) {
+      const start = questionStarts[i].index + normalizedText.substring(questionStarts[i].index).indexOf(questionStarts[i].number.toString()) + questionStarts[i].number.toString().length;
+      const end = i < questionStarts.length - 1 ? questionStarts[i + 1].index : normalizedText.length;
+      const questionText = normalizedText.substring(start, end).trim();
+
+      const parsed = parseSingleQuestion(questionText, questionStarts[i].number);
+      if (parsed) {
+        questions.push(parsed);
+      }
+    }
+
+    return questions;
+  };
+
+  const parseSingleQuestion = (text: string, num: number): ParsedQuestion | null => {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    if (lines.length < 5) return null;
+
+    const question: Partial<ParsedQuestion> = { number: num };
+    let enunciadoLines: string[] = [];
+    let currentSection = 'enunciado';
+
+    for (const line of lines) {
+      // Detecta alternativas (padrões: A), A., A-, (A), a), etc)
+      const altMatch = line.match(/^[\(\[]?\s*([A-Ea-e])\s*[\)\]\.\-]\s*(.+)/i);
+      if (altMatch) {
+        currentSection = 'alternativas';
+        const letter = altMatch[1].toUpperCase();
+        const option = altMatch[2].trim();
+        if(letter === 'A') question.optionA = option;
+        else if(letter === 'B') question.optionB = option;
+        else if(letter === 'C') question.optionC = option;
+        else if(letter === 'D') question.optionD = option;
+        else if(letter === 'E') question.optionE = option;
+        continue;
+      }
+
+      // Detecta campos especiais
+      const lowerLine = line.toLowerCase();
+
+      if (lowerLine.startsWith('gabarito:') || lowerLine.startsWith('resposta:') || lowerLine.startsWith('answer:')) {
+        const val = line.split(':')[1]?.trim().toLowerCase() || '';
+        const letter = val.replace(/[^a-e]/gi, '')[0] as 'a' | 'b' | 'c' | 'd' | 'e';
+        if (letter) question.gabarito = letter;
+        currentSection = 'metadata';
+      }
+      else if (lowerLine.startsWith('justificativa:') || lowerLine.startsWith('comentário:') || lowerLine.startsWith('explicação:')) {
+        question.justificativa = line.split(':').slice(1).join(':').trim();
+        currentSection = 'metadata';
+      }
+      else if (lowerLine.startsWith('especialidade:') || lowerLine.startsWith('disciplina:') || lowerLine.startsWith('matéria:')) {
+        question.especialidade = line.split(':')[1]?.trim() || '';
+        currentSection = 'metadata';
+      }
+      else if (lowerLine.startsWith('dimensão:') || lowerLine.startsWith('dimensao:') || lowerLine.startsWith('área:')) {
+        question.dimensao = line.split(':')[1]?.trim() || '';
+        currentSection = 'metadata';
+      }
+      else if (lowerLine.startsWith('tema:') || lowerLine.startsWith('tópico:')) {
+        question.tema = line.split(':')[1]?.trim() || '';
+        currentSection = 'metadata';
+      }
+      else if (lowerLine.startsWith('dificuldade:') || lowerLine.startsWith('nível:')) {
+        const diff = (line.split(':')[1]?.trim().toLowerCase() || '');
+        if (diff.includes('fácil') || diff.includes('facil') || diff.includes('easy')) question.dificuldade = 'easy';
+        else if (diff.includes('difícil') || diff.includes('dificil') || diff.includes('hard')) question.dificuldade = 'hard';
+        else question.dificuldade = 'medium';
+        currentSection = 'metadata';
+      }
+      else if (currentSection === 'enunciado') {
+        enunciadoLines.push(line);
+      }
+    }
+
+    question.enunciado = enunciadoLines.join(' ').trim();
+
+    // Validação
+    if (!question.enunciado || !question.optionA || !question.optionB || !question.optionC || !question.optionD || !question.gabarito) {
+      question.error = 'Campos obrigatórios faltando';
+    }
+
+    return question as ParsedQuestion;
+  };
+
+  const parseQuestionsLineByLine = (text: string): ParsedQuestion[] => {
     const lines = text.split('\n').map(line => line.trim()).filter(line => line);
     const questions: ParsedQuestion[] = [];
     let current: Partial<ParsedQuestion> = {};
@@ -52,8 +162,7 @@ export function QuestionsImporter({
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // Detecta número da questão
-      if (/^\d+\.\s/.test(line)) {
+      if (/^\d+\s*[).\-]/.test(line) || /^Questão?\s*\d+/i.test(line)) {
         if (current.enunciado) {
           if (validateQuestion(current as ParsedQuestion)) {
             questions.push(current as ParsedQuestion);
@@ -62,46 +171,45 @@ export function QuestionsImporter({
         questionNumber++;
         current = {
           number: questionNumber,
-          enunciado: line.replace(/^\d+\.\s/, ''),
+          enunciado: line.replace(/^\d+\s*[).\-]\s*/, '').replace(/^Questão?\s*\d+\s*[).\-:]?\s*/i, ''),
         };
       }
-      // Detecta alternativas
-      else if (/^[A-E]\)\s/.test(line)) {
-        const letter = line.charAt(0).toLowerCase() as 'a' | 'b' | 'c' | 'd' | 'e';
-        const text = line.replace(/^[A-E]\)\s/, '');
-        current[`option${letter.toUpperCase()}`] = text;
+      else if (/^[\(\[]?\s*[A-Ea-e]\s*[\)\]\.\-]/.test(line)) {
+        const match = line.match(/^[\(\[]?\s*([A-Ea-e])\s*[\)\]\.\-]\s*(.+)/i);
+        if (match) {
+          const letter = match[1].toUpperCase();
+          const optionText = match[2];
+          current[`option${letter}` as keyof ParsedQuestion] = optionText as string;
+        }
       }
-      // Detecta gabarito
-      else if (line.startsWith('Gabarito:')) {
-        const gabarito = line.split(':')[1].trim().toLowerCase() as 'a' | 'b' | 'c' | 'd' | 'e';
-        current.gabarito = gabarito;
+      else if (/^gabarito:/i.test(line) || /^resposta:/i.test(line)) {
+        const val = line.split(':')[1]?.trim().toLowerCase() || '';
+        const letter = val.replace(/[^a-e]/gi, '')[0] as 'a' | 'b' | 'c' | 'd' | 'e';
+        if (letter) current.gabarito = letter;
       }
-      // Detecta justificativa
-      else if (line.startsWith('Justificativa:')) {
+      else if (/^justificativa:/i.test(line)) {
         current.justificativa = line.split(':').slice(1).join(':').trim();
       }
-      // Detecta especialidade
-      else if (line.startsWith('Especialidade:')) {
-        current.especialidade = line.split(':')[1].trim();
+      else if (/^especialidade:/i.test(line) || /^disciplina:/i.test(line)) {
+        current.especialidade = line.split(':')[1]?.trim();
       }
-      // Detecta dimensão
-      else if (line.startsWith('Dimensão:') || line.startsWith('Dimensao:')) {
-        current.dimensao = line.split(':')[1].trim();
+      else if (/^dimens[ãa]o:/i.test(line)) {
+        current.dimensao = line.split(':')[1]?.trim();
       }
-      // Detecta tema
-      else if (line.startsWith('Tema:')) {
-        current.tema = line.split(':')[1].trim();
+      else if (/^tema:/i.test(line)) {
+        current.tema = line.split(':')[1]?.trim();
       }
-      // Detecta dificuldade
-      else if (line.startsWith('Dificuldade:')) {
-        const diff = line.split(':')[1].trim().toLowerCase();
-        if (diff === 'fácil' || diff === 'facil') current.dificuldade = 'easy';
-        else if (diff === 'médio' || diff === 'medio') current.dificuldade = 'medium';
-        else if (diff === 'difícil' || diff === 'dificil') current.dificuldade = 'hard';
+      else if (/^dificuldade:/i.test(line) || /^nível:/i.test(line)) {
+        const diff = (line.split(':')[1]?.trim().toLowerCase() || '');
+        if (diff.includes('fácil') || diff.includes('facil')) current.dificuldade = 'easy';
+        else if (diff.includes('difícil') || diff.includes('dificil')) current.dificuldade = 'hard';
+        else current.dificuldade = 'medium';
+      }
+      else if (current.enunciado && !current.optionA) {
+        current.enunciado = (current.enunciado + ' ' + line).trim();
       }
     }
 
-    // Adiciona a última questão
     if (current.enunciado && validateQuestion(current as ParsedQuestion)) {
       questions.push(current as ParsedQuestion);
     }
