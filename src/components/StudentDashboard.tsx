@@ -180,6 +180,7 @@ export function StudentDashboard() {
               exams={exams}
               onStartExam={handleStartExam}
               onViewResult={handleViewResult}
+              onConfigureProfile={() => handleNav('profile')}
             />
           )}
           {activeTab === 'exams' && (
@@ -203,12 +204,14 @@ function StudentDashboardView({
   exams,
   onStartExam,
   onViewResult,
+  onConfigureProfile,
 }: {
   studentProfile: StudentProfile | null;
   attempts: ExamAttempt[];
   exams: Exam[];
   onStartExam: (id: string) => void;
   onViewResult: (id: string) => void;
+  onConfigureProfile: () => void;
 }) {
   const avgScore = attempts.length > 0
     ? (attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length).toFixed(1)
@@ -263,7 +266,7 @@ function StudentDashboardView({
                 Configure seu perfil de estudos para receber recomendacoes personalizadas baseadas no seu tempo disponivel.
               </p>
               <button
-                onClick={() => {}}
+                onClick={onConfigureProfile}
                 className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors"
               >
                 Configurar Perfil
@@ -479,6 +482,19 @@ function ProfileEditor({ profile, onUpdate }: { profile: StudentProfile | null; 
     learning_preferences: profile?.learning_preferences || [],
     additional_notes: profile?.additional_notes || '',
   });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        available_hours_per_week: profile.available_hours_per_week,
+        preferred_study_times: profile.preferred_study_times || [],
+        next_exam_date: profile.next_exam_date || '',
+        study_style: profile.study_style,
+        learning_preferences: profile.learning_preferences || [],
+        additional_notes: profile.additional_notes || '',
+      });
+    }
+  }, [profile]);
 
   const handleSave = async () => {
     const { data: { user } } = await supabase.auth.getUser();
