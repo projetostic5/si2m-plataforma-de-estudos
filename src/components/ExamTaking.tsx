@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Exam, ExamQuestion, ExamAnswer } from '../lib/supabase';
 import {
   Clock,
@@ -29,8 +29,11 @@ export function ExamTaking({
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     initializeExam();
   }, [examId]);
 
@@ -82,17 +85,31 @@ export function ExamTaking({
     setQuestions(questionsData);
     setTimeLeft(examData.duration_minutes * 60);
 
-    // Create attempt
-    const { data: attemptData } = await supabase
+    // Check for existing incomplete attempt
+    const { data: existingAttempt } = await supabase
       .from('exam_attempts')
-      .insert({
-        exam_id: examId,
-        user_id: user.id,
-      })
-      .select()
-      .single();
+      .select('id, started_at')
+      .eq('exam_id', examId)
+      .eq('user_id', user.id)
+      .is('completed_at', null)
+      .maybeSingle();
 
-    setAttemptId(attemptData?.id || null);
+    if (existingAttempt) {
+      setAttemptId(existingAttempt.id);
+      const elapsedSeconds = Math.floor((new Date().getTime() - new Date(existingAttempt.started_at).getTime()) / 1000);
+      const remainingTime = Math.max(0, examData.duration_minutes * 60 - elapsedSeconds);
+      setTimeLeft(remainingTime);
+    } else {
+      const { data: newAttempt } = await supabase
+        .from('exam_attempts')
+        .insert({
+          exam_id: examId,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+      setAttemptId(newAttempt?.id || null);
+    }
     setLoading(false);
   };
 
