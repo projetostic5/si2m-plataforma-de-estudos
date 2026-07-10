@@ -123,11 +123,11 @@ export function QuestionsImporter({
         question.especialidade = line.split(':')[1]?.trim() || '';
         currentSection = 'metadata';
       }
-      else if (lowerLine.startsWith('dimensão:') || lowerLine.startsWith('dimensao:') || lowerLine.startsWith('área:')) {
+      else if (lowerLine.startsWith('tópico:') || lowerLine.startsWith('topico:') || lowerLine.startsWith('dimensão:') || lowerLine.startsWith('dimensao:') || lowerLine.startsWith('área:')) {
         question.dimensao = line.split(':')[1]?.trim() || '';
         currentSection = 'metadata';
       }
-      else if (lowerLine.startsWith('tema:') || lowerLine.startsWith('tópico:')) {
+      else if (lowerLine.startsWith('subtópico:') || lowerLine.startsWith('subtopico:') || lowerLine.startsWith('tema:')) {
         question.tema = line.split(':')[1]?.trim() || '';
         currentSection = 'metadata';
       }
@@ -193,10 +193,10 @@ export function QuestionsImporter({
       else if (/^especialidade:/i.test(line) || /^disciplina:/i.test(line)) {
         current.especialidade = line.split(':')[1]?.trim();
       }
-      else if (/^dimens[ãa]o:/i.test(line)) {
+      else if (/^t[óo]pico:/i.test(line) || /^dimens[ãa]o:/i.test(line)) {
         current.dimensao = line.split(':')[1]?.trim();
       }
-      else if (/^tema:/i.test(line)) {
+      else if (/^subt[óo]pico:/i.test(line) || /^tema:/i.test(line)) {
         current.tema = line.split(':')[1]?.trim();
       }
       else if (/^dificuldade:/i.test(line) || /^nível:/i.test(line)) {
@@ -224,8 +224,8 @@ export function QuestionsImporter({
     if (!q.gabarito) errors.push('Falta gabarito');
     if (!q.justificativa) errors.push('Falta justificativa');
     if (!q.especialidade) errors.push('Falta especialidade');
-    if (!q.dimensao) errors.push('Falta dimensão');
-    if (!q.tema) errors.push('Falta tema');
+    if (!q.dimensao) errors.push('Falta tópico');
+    if (!q.tema) errors.push('Falta subtópico');
 
     if (errors.length > 0) {
       (q as ParsedQuestion).error = errors.join(', ');
@@ -376,8 +376,8 @@ D) Retrovírus
 Gabarito: B
 Justificativa: A dengue é causada pelo vírus Dengue, um Flavivírus transmitido pelo mosquito Aedes aegypti.
 Especialidade: Infectologia
-Dimensão: Doenças Infecciosas
-Tema: Dengue
+Tópico: Doenças Infecciosas
+Subtópico: Dengue
 Dificuldade: Fácil
 
 2. Qual antibiótico é primeira linha para infecção por Streptococcus pneumoniae?
@@ -388,8 +388,8 @@ D) Metronidazol
 Gabarito: A
 Justificativa: A amoxicilina é o antibiótico beta-lactâmico de primeira linha para Streptococcus pneumoniae sensível.
 Especialidade: Infectologia
-Dimensão: Antimicrobianos
-Tema: Antibióticos
+Tópico: Antimicrobianos
+Subtópico: Antibióticos
 Dificuldade: Médio`;
 
     const blob = new Blob([template], { type: 'text/plain' });
@@ -434,7 +434,7 @@ Dificuldade: Médio`;
                 <li>• Alternativas A-E</li>
                 <li>• Gabarito</li>
                 <li>• Justificativa</li>
-                <li>• Especialidade, Dimensão, Tema e Dificuldade</li>
+                <li>• Especialidade, Tópico, Subtópico e Dificuldade</li>
               </ul>
             </div>
 

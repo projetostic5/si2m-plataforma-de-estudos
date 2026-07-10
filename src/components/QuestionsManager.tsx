@@ -259,7 +259,7 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Dimensao *</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Tópico *</label>
                   <select
                     value={formData.dimension_id}
                     onChange={(e) => setFormData({ ...formData, dimension_id: e.target.value, theme_id: '' })}
@@ -274,7 +274,7 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Tema *</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Subtópico *</label>
                   <select
                     value={formData.theme_id}
                     onChange={(e) => setFormData({ ...formData, theme_id: e.target.value })}

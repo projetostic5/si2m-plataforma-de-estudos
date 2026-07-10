@@ -386,7 +386,7 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
                     value={newDimensionName}
                     onChange={(e) => setNewDimensionName(e.target.value)}
                     className="flex-1 px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm"
-                    placeholder="Nova dimensao..."
+                    placeholder="Novo tópico..."
                     onKeyDown={(e) => e.key === 'Enter' && handleAddDimension(discipline.id)}
                   />
                   <button
@@ -416,7 +416,7 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
                               value={newThemeName}
                               onChange={(e) => setNewThemeName(e.target.value)}
                               className="flex-1 px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white text-xs"
-                              placeholder="Novo tema..."
+                              placeholder="Novo subtópico..."
                               onKeyDown={(e) => e.key === 'Enter' && handleAddTheme(dim.id)}
                             />
                             <button
