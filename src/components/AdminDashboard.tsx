@@ -268,6 +268,27 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
     fetchThemes(dimensionId);
   };
 
+  const handleDeleteDimension = async (dimensionId: string, disciplineId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este tópico? Todos os subtópicos e questões vinculados também serão excluídos.')) return;
+    const { error } = await supabase.from('dimensions').delete().eq('id', dimensionId);
+    if (error) {
+      alert('Erro ao excluir tópico: ' + error.message);
+      return;
+    }
+    setShowThemes(null);
+    fetchDimensions(disciplineId);
+  };
+
+  const handleDeleteTheme = async (themeId: string, dimensionId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este subtópico? Todas as questões vinculadas também serão excluídas.')) return;
+    const { error } = await supabase.from('themes').delete().eq('id', themeId);
+    if (error) {
+      alert('Erro ao excluir subtópico: ' + error.message);
+      return;
+    }
+    fetchThemes(dimensionId);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -401,12 +422,21 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
                     <div key={dim.id} className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-white font-medium">{dim.name}</span>
-                        <button
-                          onClick={() => setShowThemes(showThemes === dim.id ? null : dim.id)}
-                          className="p-1 text-slate-400 hover:text-white transition-colors"
-                        >
-                          <ChevronRight className={`w-4 h-4 transition-transform ${showThemes === dim.id ? 'rotate-90' : ''}`} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteDimension(dim.id, discipline.id)}
+                            className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                            title="Excluir tópico"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowThemes(showThemes === dim.id ? null : dim.id)}
+                            className="p-1 text-slate-400 hover:text-white transition-colors"
+                          >
+                            <ChevronRight className={`w-4 h-4 transition-transform ${showThemes === dim.id ? 'rotate-90' : ''}`} />
+                          </button>
+                        </div>
                       </div>
                       {showThemes === dim.id && (
                         <div className="mt-3 pt-3 border-t border-slate-700/50">
@@ -428,8 +458,15 @@ function DisciplinesManager({ disciplines, onUpdate }: { disciplines: Discipline
                           </div>
                           <div className="space-y-1">
                             {themes.filter(t => t.dimension_id === dim.id).map((theme) => (
-                              <div key={theme.id} className="px-3 py-2 bg-slate-900/50 rounded-lg text-xs text-slate-300">
-                                {theme.name}
+                              <div key={theme.id} className="flex items-center justify-between px-3 py-2 bg-slate-900/50 rounded-lg text-xs text-slate-300">
+                                <span>{theme.name}</span>
+                                <button
+                                  onClick={() => handleDeleteTheme(theme.id, dim.id)}
+                                  className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                                  title="Excluir subtópico"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             ))}
                           </div>
