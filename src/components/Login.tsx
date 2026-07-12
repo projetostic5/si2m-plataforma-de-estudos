@@ -109,17 +109,7 @@ export function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-700/50 text-center">
-            <p className="text-slate-400">
-              Não tem uma conta?{' '}
-              <button
-                onClick={() => navigate('/cadastro')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
-              >
-                Cadastre-se
-              </button>
-            </p>
-          </div>
+
         </div>
       </div>
     </div>
