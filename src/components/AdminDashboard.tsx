@@ -76,7 +76,7 @@ export function AdminDashboard() {
     <div className="min-h-screen bg-slate-900">
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-64 min-h-screen bg-slate-800/50 border-r border-slate-700/50 p-4">
+        <aside className="relative w-64 min-h-screen bg-slate-800/50 border-r border-slate-700/50 p-4">
           <div className="flex items-center gap-3 mb-8 px-2">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <GraduationCap className="w-5 h-5 text-white" />
