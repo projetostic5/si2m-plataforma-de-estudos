@@ -82,6 +82,14 @@ export type StudentProfile = {
   study_style: 'intensive' | 'balanced' | 'relaxed';
   learning_preferences?: string[];
   additional_notes?: string;
+  // onboarding fields
+  hours_per_day?: number;
+  knowledge_level?: 'basic' | 'intermediate' | 'advanced';
+  preferred_study_model?: string;
+  is_working?: boolean;
+  sleep_hours?: number;
+  has_limitations?: boolean;
+  onboarding_completed?: boolean;
   created_at: string;
   updated_at: string;
 };

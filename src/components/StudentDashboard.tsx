@@ -10,9 +10,6 @@ import {
   TrendingUp,
   LogOut,
   User,
-  Edit,
-  Save,
-  X,
   Play,
   BarChart3,
   AlertCircle,
@@ -22,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ExamTaking } from './ExamTaking';
 import { ExamResults } from './ExamResults';
+import { StudentOnboarding } from './StudentOnboarding';
 
 type Tab = 'dashboard' | 'exams' | 'profile' | 'history';
 
@@ -191,7 +189,7 @@ export function StudentDashboard() {
             <HistoryView attempts={recentAttempts} onViewResult={handleViewResult} />
           )}
           {activeTab === 'profile' && (
-            <ProfileEditor profile={studentProfile} onUpdate={fetchData} />
+            <StudentOnboarding existingProfile={studentProfile} onComplete={fetchData} />
           )}
         </main>
       </div>
@@ -469,187 +467,6 @@ function HistoryView({ attempts, onViewResult }: { attempts: ExamAttempt[]; onVi
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function ProfileEditor({ profile, onUpdate }: { profile: StudentProfile | null; onUpdate: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    available_hours_per_week: profile?.available_hours_per_week || 20,
-    preferred_study_times: profile?.preferred_study_times || [],
-    next_exam_date: profile?.next_exam_date || '',
-    study_style: profile?.study_style || 'balanced',
-    learning_preferences: profile?.learning_preferences || [],
-    additional_notes: profile?.additional_notes || '',
-  });
-
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        available_hours_per_week: profile.available_hours_per_week,
-        preferred_study_times: profile.preferred_study_times || [],
-        next_exam_date: profile.next_exam_date || '',
-        study_style: profile.study_style,
-        learning_preferences: profile.learning_preferences || [],
-        additional_notes: profile.additional_notes || '',
-      });
-    }
-  }, [profile]);
-
-  const handleSave = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    if (profile) {
-      await supabase
-        .from('student_profiles')
-        .update(formData)
-        .eq('id', profile.id);
-    } else {
-      await supabase
-        .from('student_profiles')
-        .insert({
-          user_id: user.id,
-          ...formData,
-        });
-    }
-
-    setEditing(false);
-    onUpdate();
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Meu Perfil de Estudos</h2>
-        {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            Editar Perfil
-          </button>
-        )}
-      </div>
-
-      <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Horas Disponiveis por Semana
-            </label>
-            {editing ? (
-              <input
-                type="number"
-                value={formData.available_hours_per_week}
-                onChange={(e) => setFormData({ ...formData, available_hours_per_week: parseInt(e.target.value) })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white"
-                min={1}
-                max={100}
-              />
-            ) : (
-              <p className="text-2xl font-bold text-white">
-                {profile?.available_hours_per_week || 20} horas
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Proxima Avaliacao Importante
-            </label>
-            {editing ? (
-              <input
-                type="date"
-                value={formData.next_exam_date}
-                onChange={(e) => setFormData({ ...formData, next_exam_date: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white"
-              />
-            ) : (
-              <p className="text-lg text-white">
-                {profile?.next_exam_date
-                  ? new Date(profile.next_exam_date).toLocaleDateString('pt-BR')
-                  : 'Nao definida'}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Estilo de Estudo
-            </label>
-            {editing ? (
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { id: 'intensive', label: 'Intensivo', desc: '5+ horas/dia' },
-                  { id: 'balanced', label: 'Equilibrado', desc: '2-4 horas/dia' },
-                  { id: 'relaxed', label: 'Moderado', desc: '1-2 horas/dia' },
-                ] as const).map((style) => (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, study_style: style.id })}
-                    className={`p-3 rounded-xl border-2 transition-all ${
-                      formData.study_style === style.id
-                        ? 'border-emerald-500 bg-emerald-500/10'
-                        : 'border-slate-700 bg-slate-900/50'
-                    }`}
-                  >
-                    <p className={`text-sm font-medium ${formData.study_style === style.id ? 'text-emerald-400' : 'text-slate-400'}`}>
-                      {style.label}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">{style.desc}</p>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-lg text-white capitalize">
-                {profile?.study_style === 'intensive' ? 'Intensivo' : profile?.study_style === 'balanced' ? 'Equilibrado' : 'Moderado'}
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Observacoes Adicionais
-            </label>
-            {editing ? (
-              <textarea
-                value={formData.additional_notes}
-                onChange={(e) => setFormData({ ...formData, additional_notes: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white resize-none"
-                rows={3}
-                placeholder="Adicione informacoes sobre seus objetivos de estudo..."
-              />
-            ) : (
-              <p className="text-slate-300">
-                {profile?.additional_notes || 'Nenhuma observacao adicionada'}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {editing && (
-          <div className="flex gap-3 mt-6 pt-6 border-t border-slate-700">
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              Salvar
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Cancelar
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
