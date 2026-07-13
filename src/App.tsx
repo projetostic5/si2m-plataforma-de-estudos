@@ -96,6 +96,7 @@ function AppRoutes() {
       <Route path="/estudante/simulados" element={<ProtectedRoute><StudentSimulados /></ProtectedRoute>} />
       <Route path="/estudante/resultados" element={<ProtectedRoute><StudentResultados /></ProtectedRoute>} />
       <Route path="/estudante/configuracoes" element={<ProtectedRoute><StudentConfiguracoes /></ProtectedRoute>} />
+      <Route path="/estudante/plano" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
       <Route path="/estudante/simulado/:id" element={<ProtectedRoute><StudentTakeExam /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

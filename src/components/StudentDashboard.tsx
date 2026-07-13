@@ -16,12 +16,14 @@ import {
   CheckCircle,
   XCircle,
   Award,
+  CalendarDays,
 } from 'lucide-react';
 import { ExamTaking } from './ExamTaking';
 import { ExamResults } from './ExamResults';
 import { StudentOnboarding } from './StudentOnboarding';
+import { StudyPlan } from './StudyPlan';
 
-type Tab = 'dashboard' | 'exams' | 'profile' | 'history';
+type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan';
 
 export function StudentDashboard() {
   const location = useLocation();
@@ -34,6 +36,7 @@ export function StudentDashboard() {
     if (path === '/estudante/simulados') setActiveTab('exams');
     else if (path === '/estudante/resultados') setActiveTab('history');
     else if (path === '/estudante/configuracoes') setActiveTab('profile');
+    else if (path === '/estudante/plano') setActiveTab('studyplan');
     else setActiveTab('dashboard');
   }, [location.pathname]);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
@@ -99,6 +102,7 @@ export function StudentDashboard() {
     { id: 'exams', label: 'Simulados', icon: BookOpen },
     { id: 'history', label: 'Historico', icon: TrendingUp },
     { id: 'profile', label: 'Meu Perfil', icon: User },
+    { id: 'studyplan', label: 'Meu Plano de Estudos', icon: CalendarDays },
   ];
 
   const handleNav = (tabId: string) => {
@@ -108,6 +112,7 @@ export function StudentDashboard() {
       exams: '/estudante/simulados',
       history: '/estudante/resultados',
       profile: '/estudante/configuracoes',
+      studyplan: '/estudante/plano',
     };
     navigate(pathMap[tabId] || '/estudante');
   };
@@ -190,6 +195,9 @@ export function StudentDashboard() {
           )}
           {activeTab === 'profile' && (
             <StudentOnboarding existingProfile={studentProfile} onComplete={fetchData} />
+          )}
+          {activeTab === 'studyplan' && (
+            <StudyPlan studentProfile={studentProfile} />
           )}
         </main>
       </div>
