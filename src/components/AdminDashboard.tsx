@@ -73,8 +73,8 @@ export function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="flex">
+    <div className="min-h-screen bg-slate-900 overflow-x-hidden">
+      <div className="flex min-h-screen overflow-x-hidden">
         {/* Sidebar */}
         <aside className="relative w-64 min-h-screen bg-slate-800/50 border-r border-slate-700/50 p-4">
           <div className="flex items-center gap-3 mb-8 px-2">

@@ -187,9 +187,9 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-white">Questoes</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <QuestionsImporter disciplines={disciplines} onImportComplete={fetchQuestions} />
           <button
             onClick={() => setShowForm(true)}
@@ -202,8 +202,8 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="relative flex-1">
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
           <input
             type="text"
@@ -243,7 +243,7 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Disciplina *</label>
                   <select

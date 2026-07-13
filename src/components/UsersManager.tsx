@@ -872,7 +872,7 @@ Carlos Eduardo Lima,carlos.lima@residencia.med.br`}
             <p className="text-sm text-slate-400 mb-2">
               <span className="text-white font-medium">{parsedUsers.length}</span> usuario{parsedUsers.length !== 1 ? 's' : ''} encontrado{parsedUsers.length !== 1 ? 's' : ''}:
             </p>
-            <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+            <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-x-auto max-h-48 overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-slate-900/80 backdrop-blur">
                   <tr>

@@ -142,8 +142,8 @@ export function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="flex">
+    <div className="min-h-screen bg-slate-900 overflow-x-hidden">
+      <div className="flex min-h-screen overflow-x-hidden">
         {/* Sidebar */}
         <aside className="w-64 min-h-screen bg-slate-800/50 border-r border-slate-700/50 p-4">
           <div className="flex items-center gap-3 mb-8 px-2">
@@ -192,7 +192,8 @@ export function StudentDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 min-w-0 p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto w-full">
           {activeTab === 'dashboard' && (
             <StudentDashboardView
               studentProfile={studentProfile}
@@ -221,6 +222,7 @@ export function StudentDashboard() {
           {activeTab === 'dashboards' && (
             <StudyPlanHistory />
           )}
+          </div>
         </main>
       </div>
     </div>

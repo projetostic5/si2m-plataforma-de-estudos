@@ -315,9 +315,9 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-white">Simulados</h2>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={handleExportTopics}
             disabled={exportingTopics}
@@ -417,7 +417,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -486,7 +486,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 overflow-auto flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto flex-1">
               {/* Available Questions */}
               <div className="bg-slate-900/50 rounded-xl p-4">
                 <h4 className="text-sm font-medium text-slate-300 mb-4">
@@ -577,8 +577,8 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
         ) : (
           exams.map((exam) => (
             <div key={exam.id} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 hover:border-slate-600 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -594,7 +594,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
                   {exam.description && (
                     <p className="text-sm text-slate-300 mb-3">{exam.description}</p>
                   )}
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-4 text-sm flex-wrap">
                     <span className="flex items-center gap-1 text-slate-400">
                       <Clock className="w-4 h-4" />
                       {exam.duration_minutes} min
