@@ -17,13 +17,15 @@ import {
   XCircle,
   Award,
   CalendarDays,
+  FolderOpen,
 } from 'lucide-react';
 import { ExamTaking } from './ExamTaking';
 import { ExamResults } from './ExamResults';
 import { StudentOnboarding } from './StudentOnboarding';
 import { StudyPlan } from './StudyPlan';
+import { MaterialsExplorer } from './MaterialsExplorer';
 
-type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan';
+type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan' | 'materials';
 
 export function StudentDashboard() {
   const location = useLocation();
@@ -37,6 +39,7 @@ export function StudentDashboard() {
     else if (path === '/estudante/resultados') setActiveTab('history');
     else if (path === '/estudante/configuracoes') setActiveTab('profile');
     else if (path === '/estudante/plano') setActiveTab('studyplan');
+    else if (path === '/estudante/materiais') setActiveTab('materials');
     else setActiveTab('dashboard');
   }, [location.pathname]);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
@@ -103,6 +106,7 @@ export function StudentDashboard() {
     { id: 'history', label: 'Historico', icon: TrendingUp },
     { id: 'profile', label: 'Meu Perfil', icon: User },
     { id: 'studyplan', label: 'Meu Plano de Estudos', icon: CalendarDays },
+    { id: 'materials', label: 'Materiais de Apoio', icon: FolderOpen },
   ];
 
   const handleNav = (tabId: string) => {
@@ -113,6 +117,7 @@ export function StudentDashboard() {
       history: '/estudante/resultados',
       profile: '/estudante/configuracoes',
       studyplan: '/estudante/plano',
+      materials: '/estudante/materiais',
     };
     navigate(pathMap[tabId] || '/estudante');
   };
@@ -198,6 +203,9 @@ export function StudentDashboard() {
           )}
           {activeTab === 'studyplan' && (
             <StudyPlan studentProfile={studentProfile} />
+          )}
+          {activeTab === 'materials' && (
+            <MaterialsExplorer />
           )}
         </main>
       </div>

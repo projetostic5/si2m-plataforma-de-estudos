@@ -17,12 +17,14 @@ import {
   X,
   AlertCircle,
   CheckCircle,
+  FolderOpen,
 } from 'lucide-react';
 import { QuestionsManager } from './QuestionsManager';
 import { ExamsManager } from './ExamsManager';
 import { UsersManager } from './UsersManager';
+import { MaterialsManager } from './MaterialsManager';
 
-type Tab = 'dashboard' | 'disciplines' | 'questions' | 'exams' | 'users';
+type Tab = 'dashboard' | 'disciplines' | 'questions' | 'exams' | 'users' | 'materials';
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -67,6 +69,7 @@ export function AdminDashboard() {
     { id: 'questions', label: 'Questoes', icon: FileQuestion },
     { id: 'exams', label: 'Simulados', icon: ClipboardList },
     { id: 'users', label: 'Estudantes', icon: Users },
+    { id: 'materials', label: 'Materiais de Apoio', icon: FolderOpen },
   ];
 
   return (
@@ -126,6 +129,7 @@ export function AdminDashboard() {
           {activeTab === 'questions' && <QuestionsManager disciplines={disciplines} />}
           {activeTab === 'exams' && <ExamsManager disciplines={disciplines} />}
           {activeTab === 'users' && <UsersManager />}
+          {activeTab === 'materials' && <MaterialsManager disciplines={disciplines} />}
         </main>
       </div>
     </div>

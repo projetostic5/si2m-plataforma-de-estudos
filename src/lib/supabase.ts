@@ -145,6 +145,22 @@ export type ExamAnswer = {
   question?: Question;
 };
 
+export type StudyMaterial = {
+  id: string;
+  discipline_id: string;
+  dimension_id: string;
+  theme_id?: string | null;
+  name: string;
+  file_path: string;
+  file_name: string;
+  file_size?: number | null;
+  file_type?: string | null;
+  uploaded_by: string;
+  created_at: string;
+  dimension?: { name: string };
+  theme?: { name: string } | null;
+};
+
 export type StudyRecommendation = {
   id: string;
   attempt_id: string;
