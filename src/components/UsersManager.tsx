@@ -17,6 +17,7 @@ import {
   KeyRound,
   Mail,
   X,
+  RefreshCw,
 } from 'lucide-react';
 
 interface ImportResult {
@@ -312,6 +313,244 @@ function CreateUserModal({
   );
 }
 
+// ── Reset password modal ──────────────────────────────────────────────────────
+
+type ResetMode = 'email' | 'password';
+
+interface ResetResult {
+  success: boolean;
+  mode?: ResetMode;
+  email?: string;
+  password?: string;
+  error?: string;
+}
+
+function ResetPasswordModal({
+  student,
+  onClose,
+}: {
+  student: Profile;
+  onClose: () => void;
+}) {
+  const [mode, setMode] = useState<ResetMode>('email');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ResetResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleReset = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/batch-create-users`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+            Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ action: 'reset_password', userId: student.id, mode }),
+        }
+      );
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || `HTTP ${response.status}`);
+      setResult({ success: true, ...json });
+    } catch (err: any) {
+      setResult({ success: false, error: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyPassword = () => {
+    if (result?.password) {
+      navigator.clipboard.writeText(result.password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+              <RefreshCw className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Redefinir Senha</h3>
+              <p className="text-xs text-slate-400 truncate max-w-[200px]">{student.full_name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-700/50"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Mode selector */}
+          {!result?.success && (
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-2.5">Como redefinir?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('email')}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-left ${
+                    mode === 'email'
+                      ? 'bg-emerald-500/10 border-emerald-500/40'
+                      : 'bg-slate-900/30 border-slate-700/50 hover:border-slate-600'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    mode === 'email' ? 'bg-emerald-500/20' : 'bg-slate-700/50'
+                  }`}>
+                    <Mail className={`w-3.5 h-3.5 ${mode === 'email' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold ${mode === 'email' ? 'text-emerald-300' : 'text-slate-300'}`}>
+                      Link por email
+                    </p>
+                    <p className="text-xs text-slate-500">Estudante redefine</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('password')}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-left ${
+                    mode === 'password'
+                      ? 'bg-amber-500/10 border-amber-500/40'
+                      : 'bg-slate-900/30 border-slate-700/50 hover:border-slate-600'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    mode === 'password' ? 'bg-amber-500/20' : 'bg-slate-700/50'
+                  }`}>
+                    <KeyRound className={`w-3.5 h-3.5 ${mode === 'password' ? 'text-amber-400' : 'text-slate-400'}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold ${mode === 'password' ? 'text-amber-300' : 'text-slate-300'}`}>
+                      Nova senha temp.
+                    </p>
+                    <p className="text-xs text-slate-500">Gerada aqui</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <div className={`rounded-xl border p-4 ${
+              result.success
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              {result.success ? (
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    {result.mode === 'email' ? (
+                      <>
+                        <p className="text-sm font-semibold text-emerald-300">Email enviado!</p>
+                        <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                          <Mail className="w-3 h-3" />
+                          Link de redefinição enviado para{' '}
+                          <span className="text-white">{result.email}</span>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-emerald-300">Senha atualizada!</p>
+                        <p className="text-xs text-slate-400 mt-1 mb-2">
+                          Nova senha temporária — repasse ao estudante:
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono text-amber-300 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 flex-1">
+                            {result.password}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={copyPassword}
+                            className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                          >
+                            {copied ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-300">Erro ao redefinir senha</p>
+                    <p className="text-xs text-red-400 mt-1">{result.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            {result?.success ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors text-sm"
+              >
+                Concluir
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={loading}
+                  className={`flex-1 py-2.5 text-white rounded-xl font-medium transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    mode === 'email'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-lg hover:shadow-emerald-500/20'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:shadow-lg hover:shadow-amber-500/20'
+                  }`}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : mode === 'email' ? (
+                    <><Mail className="w-4 h-4" /> Enviar Link</>
+                  ) : (
+                    <><KeyRound className="w-4 h-4" /> Gerar Senha</>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function UsersManager() {
   const [students, setStudents] = useState<Profile[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
@@ -325,6 +564,7 @@ export function UsersManager() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('invite');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [resetStudent, setResetStudent] = useState<Profile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -484,6 +724,13 @@ export function UsersManager() {
         <CreateUserModal
           onClose={() => setShowCreateModal(false)}
           onCreated={fetchStudents}
+        />
+      )}
+
+      {resetStudent && (
+        <ResetPasswordModal
+          student={resetStudent}
+          onClose={() => setResetStudent(null)}
         />
       )}
 
@@ -814,18 +1061,27 @@ Carlos Eduardo Lima,carlos.lima@residencia.med.br`}
                       {new Date(s.created_at).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-3 text-right">
-                      <button
-                        onClick={() => handleDeleteStudent(s.id, s.full_name)}
-                        disabled={deletingId === s.id}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-all"
-                        title="Remover estudante"
-                      >
-                        {deletingId === s.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setResetStudent(s)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-amber-400 transition-all"
+                          title="Redefinir senha"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(s.id, s.full_name)}
+                          disabled={deletingId === s.id}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-500 hover:text-red-400 transition-all"
+                          title="Remover estudante"
+                        >
+                          {deletingId === s.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -65,9 +65,67 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
+
+    // ── Reset password action ─────────────────────────────────────────────────
+    if (body.action === "reset_password") {
+      const { userId, mode } = body as { userId: string; mode: "email" | "password" };
+
+      if (!userId || !mode) {
+        return new Response(
+          JSON.stringify({ error: "userId e mode são obrigatórios" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (getUserError || !targetUser?.user) {
+        return new Response(
+          JSON.stringify({ error: "Usuário não encontrado" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (mode === "email") {
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          targetUser.user.email!
+        );
+        if (resetError) {
+          return new Response(
+            JSON.stringify({ error: resetError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ success: true, mode: "email", email: targetUser.user.email }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (mode === "password") {
+        const newPassword = generatePassword();
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: newPassword,
+        });
+        if (updateError) {
+          return new Response(
+            JSON.stringify({ error: updateError.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ success: true, mode: "password", password: newPassword }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ error: "mode inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── Batch create users action ─────────────────────────────────────────────
     const users: UserInput[] = body.users;
-    // sendInvite=true → inviteUserByEmail (student sets own password via email link)
-    // sendInvite=false → createUser with generated temp password (shown to admin)
     const sendInvite: boolean = body.sendInvite === true;
 
     if (!Array.isArray(users) || users.length === 0) {
@@ -91,7 +149,6 @@ Deno.serve(async (req: Request) => {
       let userId: string;
 
       if (sendInvite) {
-        // Invite flow: Supabase sends email with password-reset link
         const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
           email,
           { data: { full_name } }
@@ -103,7 +160,6 @@ Deno.serve(async (req: Request) => {
         }
         userId = invited.user.id;
       } else {
-        // Temp password flow: admin sees password in UI
         const password = u.password?.trim() || generatePassword();
         const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
           email,
@@ -117,7 +173,6 @@ Deno.serve(async (req: Request) => {
         }
         userId = created.user.id;
 
-        // Check if profile already exists (re-run safety)
         const { data: existing } = await supabaseAdmin
           .from("profiles")
           .select("id")
@@ -142,7 +197,6 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Insert profile for invite flow
       const { data: existing } = await supabaseAdmin
         .from("profiles")
         .select("id")
