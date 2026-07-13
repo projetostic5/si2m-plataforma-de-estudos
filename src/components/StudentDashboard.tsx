@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase, Exam, StudentProfile, ExamAttempt } from '../lib/supabase';
+import { saveStudyPlanVersion } from '../lib/studyPlanGenerator';
 import {
   GraduationCap,
   BookOpen,
@@ -18,14 +19,16 @@ import {
   Award,
   CalendarDays,
   FolderOpen,
+  LayoutDashboard,
 } from 'lucide-react';
 import { ExamTaking } from './ExamTaking';
 import { ExamResults } from './ExamResults';
 import { StudentOnboarding } from './StudentOnboarding';
 import { StudyPlan } from './StudyPlan';
 import { MaterialsExplorer } from './MaterialsExplorer';
+import { StudyPlanHistory } from './StudyPlanHistory';
 
-type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan' | 'materials';
+type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan' | 'materials' | 'dashboards';
 
 export function StudentDashboard() {
   const location = useLocation();
@@ -40,6 +43,7 @@ export function StudentDashboard() {
     else if (path === '/estudante/configuracoes') setActiveTab('profile');
     else if (path === '/estudante/plano') setActiveTab('studyplan');
     else if (path === '/estudante/materiais') setActiveTab('materials');
+    else if (path === '/estudante/dashboards') setActiveTab('dashboards');
     else setActiveTab('dashboard');
   }, [location.pathname]);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
@@ -90,10 +94,16 @@ export function StudentDashboard() {
     setActiveExamId(examId);
   };
 
-  const handleExamComplete = () => {
+  const handleExamComplete = async (attemptId: string, completedAt: string) => {
     setActiveExamId(null);
     fetchData();
-    setActiveTab('history');
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      saveStudyPlanVersion(user.id, attemptId, completedAt, studentProfile);
+    }
+
+    setActiveTab('dashboards');
   };
 
   const handleViewResult = (attemptId: string) => {
@@ -106,6 +116,7 @@ export function StudentDashboard() {
     { id: 'history', label: 'Historico', icon: TrendingUp },
     { id: 'profile', label: 'Meu Perfil', icon: User },
     { id: 'studyplan', label: 'Meu Plano de Estudos', icon: CalendarDays },
+    { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
     { id: 'materials', label: 'Materiais de Apoio', icon: FolderOpen },
   ];
 
@@ -117,6 +128,7 @@ export function StudentDashboard() {
       history: '/estudante/resultados',
       profile: '/estudante/configuracoes',
       studyplan: '/estudante/plano',
+      dashboards: '/estudante/dashboards',
       materials: '/estudante/materiais',
     };
     navigate(pathMap[tabId] || '/estudante');
@@ -206,6 +218,9 @@ export function StudentDashboard() {
           )}
           {activeTab === 'materials' && (
             <MaterialsExplorer />
+          )}
+          {activeTab === 'dashboards' && (
+            <StudyPlanHistory />
           )}
         </main>
       </div>

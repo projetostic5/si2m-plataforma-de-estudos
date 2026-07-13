@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase, StudentProfile } from '../lib/supabase';
 import {
+  generatePlan,
+  daysUntil,
+  getDefault30DaysDate,
+  formatMinutes,
+  EFFICIENCY,
+  type SimuladoResult,
+  type WrongItem,
+  type StudyDay,
+  type ThemeBlock,
+} from '../lib/studyPlanGenerator';
+import {
   CalendarDays,
   Clock,
   BookOpen,
@@ -14,52 +25,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface SimuladoResult {
-  examName: string;
-  attemptId: string;
-  percentage: number;
-  completedAt: string;
-  wrongCount: number;
-}
-
-interface WrongItem {
-  questionId: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  dimensionId: string;
-  dimensionName: string;
-  themeId: string;
-  themeName: string;
-  topicName?: string;
-  source: 'A' | 'B';
-}
-
-interface ThemeBlock {
-  dimensionId: string;
-  dimensionName: string;
-  themeId: string;
-  themeName: string;
-  topicName?: string;
-  wrongCount: number;
-  minutes: number;
-  sources: string[];
-}
-
-interface StudyDay {
-  date: Date;
-  dayIndex: number;
-  blocks: ThemeBlock[];
-  totalMinutes: number;
-  capacityMinutes: number;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const KNOWLEDGE_MULT = { basic: 1.5, intermediate: 1.0, advanced: 0.7 };
-const DIFF_MULT: Record<string, number> = { easy: 0.7, medium: 1.0, hard: 1.3 };
-const BASE_MIN = 45;
-const EFFICIENCY = 0.85;
+// ─── Color helpers ────────────────────────────────────────────────────────────
 
 const DIMENSION_COLORS = [
   { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', bar: 'bg-blue-500' },
@@ -73,131 +39,12 @@ const DIMENSION_COLORS = [
 ];
 
 const colorCache: Record<string, (typeof DIMENSION_COLORS)[0]> = {};
-function getDimColor(name: string) {
+export function getDimColor(name: string) {
   if (colorCache[name]) return colorCache[name];
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffff;
   colorCache[name] = DIMENSION_COLORS[Math.abs(h) % DIMENSION_COLORS.length];
   return colorCache[name];
-}
-
-function formatMinutes(m: number): string {
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  const rem = m % 60;
-  return rem > 0 ? `${h}h ${rem}min` : `${h}h`;
-}
-
-function daysUntil(dateStr: string): number {
-  const target = new Date(dateStr + 'T12:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.max(1, Math.ceil((target.getTime() - today.getTime()) / 86_400_000));
-}
-
-function generatePlan(
-  wrongItems: WrongItem[],
-  hoursPerDay: number,
-  daysRemaining: number,
-  knowledgeLevel: 'basic' | 'intermediate' | 'advanced',
-): StudyDay[] {
-  const kMult = KNOWLEDGE_MULT[knowledgeLevel] ?? 1.0;
-  const capacityPerDay = Math.round(hoursPerDay * 60 * EFFICIENCY);
-
-  // Group by theme
-  const map: Record<string, {
-    dimensionId: string;
-    dimensionName: string;
-    themeId: string;
-    themeName: string;
-    topicName?: string;
-    wrongCount: number;
-    rawMinutes: number;
-    sources: Set<string>;
-  }> = {};
-
-  for (const item of wrongItems) {
-    const key = item.themeId;
-    if (!map[key]) {
-      map[key] = {
-        dimensionId: item.dimensionId,
-        dimensionName: item.dimensionName,
-        themeId: item.themeId,
-        themeName: item.themeName,
-        topicName: item.topicName,
-        wrongCount: 0,
-        rawMinutes: 0,
-        sources: new Set(),
-      };
-    }
-    const dMult = DIFF_MULT[item.difficulty] ?? 1.0;
-    map[key].wrongCount++;
-    map[key].rawMinutes += BASE_MIN * kMult * dMult;
-    map[key].sources.add(item.source);
-  }
-
-  // Sort by minutes descending
-  let themes = Object.values(map).sort((a, b) => b.rawMinutes - a.rawMinutes);
-
-  // Scale if over capacity
-  const totalRaw = themes.reduce((s, t) => s + t.rawMinutes, 0);
-  const totalCapacity = daysRemaining * capacityPerDay;
-  const scale = totalRaw > totalCapacity ? totalCapacity / totalRaw : 1;
-
-  // Round to nearest 15 min, minimum 30
-  themes = themes.map(t => ({
-    ...t,
-    rawMinutes: Math.max(30, Math.round((t.rawMinutes * scale) / 15) * 15),
-  }));
-
-  // Pack into days (greedy)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const days: StudyDay[] = [];
-  let dayIdx = 0;
-  let dayMinutes = 0;
-  let dayBlocks: ThemeBlock[] = [];
-
-  const commitDay = () => {
-    if (dayBlocks.length > 0) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + dayIdx);
-      days.push({ date, dayIndex: dayIdx, blocks: dayBlocks, totalMinutes: dayMinutes, capacityMinutes: capacityPerDay });
-    }
-    dayIdx++;
-    dayMinutes = 0;
-    dayBlocks = [];
-  };
-
-  for (const theme of themes) {
-    let remaining = theme.rawMinutes;
-
-    while (remaining > 0 && dayIdx < daysRemaining) {
-      const available = capacityPerDay - dayMinutes;
-      if (available < 15) { commitDay(); continue; }
-
-      const alloc = Math.min(remaining, available);
-      dayBlocks.push({
-        dimensionId: theme.dimensionId,
-        dimensionName: theme.dimensionName,
-        themeId: theme.themeId,
-        themeName: theme.themeName,
-        topicName: theme.topicName,
-        wrongCount: theme.wrongCount,
-        minutes: alloc,
-        sources: Array.from(theme.sources),
-      });
-      dayMinutes += alloc;
-      remaining -= alloc;
-
-      if (dayMinutes >= capacityPerDay) commitDay();
-    }
-  }
-
-  if (dayBlocks.length > 0) commitDay();
-
-  return days;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -221,7 +68,7 @@ function MetricCard({ icon: Icon, label, value, sub, color }: {
   );
 }
 
-function DayCard({ day, expanded, onToggle }: {
+export function DayCard({ day, expanded, onToggle }: {
   day: StudyDay;
   expanded: boolean;
   onToggle: () => void;
@@ -286,7 +133,7 @@ function DayCard({ day, expanded, onToggle }: {
 
       {expanded && (
         <div className="border-t border-slate-700/50 px-5 pb-4 pt-3 space-y-2">
-          {day.blocks.map((block, i) => {
+          {day.blocks.map((block: ThemeBlock, i: number) => {
             const col = getDimColor(block.dimensionName);
             return (
               <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${col.bg} ${col.border}`}>
@@ -345,19 +192,14 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Find exams marked for study plan
       const { data: exams } = await supabase
         .from('exams')
         .select('id, name')
         .eq('counts_for_study_plan', true)
         .eq('is_active', true);
 
-      if (!exams?.length) {
-        setLoading(false);
-        return;
-      }
+      if (!exams?.length) { setLoading(false); return; }
 
-      // 2. Get latest completed attempt per exam for this user
       const { data: allAttempts } = await supabase
         .from('exam_attempts')
         .select('id, exam_id, percentage, completed_at')
@@ -366,23 +208,17 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false });
 
-      if (!allAttempts?.length) {
-        setLoading(false);
-        return;
-      }
+      if (!allAttempts?.length) { setLoading(false); return; }
 
-      // Pick latest per exam
       const latestMap: Record<string, typeof allAttempts[0]> = {};
       for (const a of allAttempts) {
         if (!latestMap[a.exam_id]) latestMap[a.exam_id] = a;
       }
       const latestAttempts = Object.values(latestMap);
 
-      // Build exam name lookup
       const examNameById: Record<string, string> = {};
       for (const e of exams) examNameById[e.id] = e.name;
 
-      // 3. Get wrong answers with question details
       const { data: answers } = await supabase
         .from('exam_answers')
         .select(`
@@ -400,7 +236,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         .in('attempt_id', latestAttempts.map(a => a.id))
         .eq('is_correct', false);
 
-      // Build simulado results
       const results: SimuladoResult[] = latestAttempts.map(a => ({
         examName: examNameById[a.exam_id] ?? '?',
         attemptId: a.id,
@@ -410,11 +245,9 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       }));
       setSimuladoResults(results.sort((a, b) => a.examName.localeCompare(b.examName)));
 
-      // Build wrong items
-      const attemptToExamName: Record<string, string> = {};
+      const attemptToSource: Record<string, string> = {};
       for (const a of latestAttempts) {
-        const letter = (examNameById[a.exam_id] ?? '').replace('SIMULADO ', '') as 'A' | 'B';
-        attemptToExamName[a.id] = letter;
+        attemptToSource[a.id] = (examNameById[a.exam_id] ?? '').replace('SIMULADO ', '');
       }
 
       const wrongItems: WrongItem[] = (answers ?? [])
@@ -429,19 +262,15 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
             themeId: q.theme?.id ?? '',
             themeName: q.theme?.name ?? 'Sem tema',
             topicName: q.topic?.name,
-            source: attemptToExamName[a.attempt_id] as 'A' | 'B',
+            source: attemptToSource[a.attempt_id] ?? '?',
           };
         })
         .filter(w => w.themeId);
 
       setTotalWrong(wrongItems.length);
 
-      if (!wrongItems.length) {
-        setLoading(false);
-        return;
-      }
+      if (!wrongItems.length) { setLoading(false); return; }
 
-      // 4. Generate plan
       const hoursPerDay = studentProfile?.hours_per_day ?? 3;
       const examDate = studentProfile?.next_exam_date ?? getDefault30DaysDate();
       const daysLeft = daysUntil(examDate);
@@ -450,17 +279,17 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       const plan = generatePlan(wrongItems, hoursPerDay, daysLeft, kLevel);
       setStudyDays(plan);
 
-      // Compute dimension totals
       const dimMap: Record<string, number> = {};
       for (const day of plan) {
         for (const b of day.blocks) {
           dimMap[b.dimensionName] = (dimMap[b.dimensionName] ?? 0) + b.minutes;
         }
       }
-      const dimArr = Object.entries(dimMap)
-        .map(([name, minutes]) => ({ name, minutes }))
-        .sort((a, b) => b.minutes - a.minutes);
-      setDimensionTotals(dimArr);
+      setDimensionTotals(
+        Object.entries(dimMap)
+          .map(([name, minutes]) => ({ name, minutes }))
+          .sort((a, b) => b.minutes - a.minutes)
+      );
     } finally {
       setLoading(false);
     }
@@ -473,8 +302,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       return next;
     });
   };
-
-  // ── Guards ──
 
   if (!studentProfile?.onboarding_completed) {
     return (
@@ -529,8 +356,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
     );
   }
 
-  // ── Computed display values ──
-
   const examDate = studentProfile.next_exam_date ?? getDefault30DaysDate();
   const daysLeft = daysUntil(examDate);
   const hoursPerDay = studentProfile.hours_per_day ?? 3;
@@ -542,7 +367,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
 
   return (
     <div className="max-w-4xl">
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white">Meu Plano de Estudos</h2>
@@ -559,7 +383,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         </button>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <MetricCard
           icon={CalendarDays}
@@ -591,7 +414,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         />
       </div>
 
-      {/* Simulado Results Strip */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 mb-6">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
           <Layers className="w-4 h-4" />
@@ -619,7 +441,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         </div>
       </div>
 
-      {/* Dimension Summary */}
       {dimensionTotals.length > 0 && (
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 mb-6">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
@@ -635,10 +456,7 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
                     {name}
                   </p>
                   <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${col.bar}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className={`h-full rounded-full ${col.bar}`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="text-xs text-slate-400 w-16 text-right flex-shrink-0">
                     {formatMinutes(minutes)}
@@ -650,7 +468,6 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         </div>
       )}
 
-      {/* Day-by-Day Timeline */}
       <div>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
           Plano Dia a Dia
@@ -668,10 +485,4 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       </div>
     </div>
   );
-}
-
-function getDefault30DaysDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 30);
-  return d.toISOString().split('T')[0];
 }

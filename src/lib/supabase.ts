@@ -130,6 +130,7 @@ export type ExamAttempt = {
   total_score: number;
   percentage: number;
   passed: boolean;
+  question_order?: string[];
   created_at: string;
   exam?: Exam;
 };
@@ -159,6 +160,15 @@ export type StudyMaterial = {
   created_at: string;
   dimension?: { name: string };
   theme?: { name: string } | null;
+};
+
+export type StudyPlanVersion = {
+  id: string;
+  user_id: string;
+  attempt_id: string;
+  completed_at: string;
+  plan_data: import('./studyPlanGenerator').StudyPlanData;
+  created_at: string;
 };
 
 export type StudyRecommendation = {

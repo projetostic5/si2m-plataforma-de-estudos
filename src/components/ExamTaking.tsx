@@ -17,7 +17,7 @@ export function ExamTaking({
   onCancel,
 }: {
   examId: string;
-  onComplete: () => void;
+  onComplete: (attemptId: string, completedAt: string) => void;
   onCancel: () => void;
 }) {
   const [exam, setExam] = useState<Exam | null>(null);
@@ -82,32 +82,45 @@ export function ExamTaking({
     if (!questionsData) return;
 
     setExam(examData);
-    setQuestions(questionsData);
     setTimeLeft(examData.duration_minutes * 60);
 
     // Check for existing incomplete attempt
     const { data: existingAttempt } = await supabase
       .from('exam_attempts')
-      .select('id, started_at')
+      .select('id, started_at, question_order')
       .eq('exam_id', examId)
       .eq('user_id', user.id)
       .is('completed_at', null)
       .maybeSingle();
 
     if (existingAttempt) {
+      // Restore saved question order if available
+      const storedOrder = existingAttempt.question_order as string[] | null;
+      if (storedOrder?.length) {
+        const orderMap = Object.fromEntries(storedOrder.map((id, idx) => [id, idx]));
+        questionsData.sort((a, b) => (orderMap[a.question_id] ?? 999) - (orderMap[b.question_id] ?? 999));
+      }
+      setQuestions(questionsData);
       setAttemptId(existingAttempt.id);
       const elapsedSeconds = Math.floor((new Date().getTime() - new Date(existingAttempt.started_at).getTime()) / 1000);
       const remainingTime = Math.max(0, examData.duration_minutes * 60 - elapsedSeconds);
       setTimeLeft(remainingTime);
     } else {
+      // Shuffle questions for a fresh attempt
+      const shuffled = [...questionsData].sort(() => Math.random() - 0.5);
+      const shuffledOrder = shuffled.map(q => q.question_id);
+
       const { data: newAttempt } = await supabase
         .from('exam_attempts')
         .insert({
           exam_id: examId,
           user_id: user.id,
+          question_order: shuffledOrder,
         })
         .select()
         .single();
+
+      setQuestions(shuffled);
       setAttemptId(newAttempt?.id || null);
     }
     setLoading(false);
@@ -167,7 +180,8 @@ export function ExamTaking({
       })
       .eq('id', attemptId);
 
-    onComplete();
+    const completedAt = new Date().toISOString();
+    onComplete(attemptId, completedAt);
   }, [attemptId, answers, exam, questions, startTime, onComplete]);
 
   const formatTime = (seconds: number) => {
