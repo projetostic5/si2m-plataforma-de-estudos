@@ -116,7 +116,6 @@ export function StudentDashboard() {
     { id: 'history', label: 'Historico', icon: TrendingUp },
     { id: 'profile', label: 'Meu Perfil', icon: User },
     { id: 'studyplan', label: 'Meu Plano de Estudos', icon: CalendarDays },
-    { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
     { id: 'materials', label: 'Materiais de Apoio', icon: FolderOpen },
   ];
 
