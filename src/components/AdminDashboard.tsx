@@ -123,13 +123,15 @@ export function AdminDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
-          {activeTab === 'dashboard' && <DashboardStats stats={stats} />}
-          {activeTab === 'disciplines' && <DisciplinesManager disciplines={disciplines} onUpdate={fetchDisciplines} />}
-          {activeTab === 'questions' && <QuestionsManager disciplines={disciplines} />}
-          {activeTab === 'exams' && <ExamsManager disciplines={disciplines} />}
-          {activeTab === 'users' && <UsersManager />}
-          {activeTab === 'materials' && <MaterialsManager disciplines={disciplines} />}
+        <main className="flex-1 min-w-0 p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto w-full">
+            {activeTab === 'dashboard' && <DashboardStats stats={stats} />}
+            {activeTab === 'disciplines' && <DisciplinesManager disciplines={disciplines} onUpdate={fetchDisciplines} />}
+            {activeTab === 'questions' && <QuestionsManager disciplines={disciplines} />}
+            {activeTab === 'exams' && <ExamsManager disciplines={disciplines} />}
+            {activeTab === 'users' && <UsersManager />}
+            {activeTab === 'materials' && <MaterialsManager disciplines={disciplines} />}
+          </div>
         </main>
       </div>
     </div>
