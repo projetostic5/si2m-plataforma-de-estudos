@@ -20,8 +20,9 @@ import {
 } from 'lucide-react';
 import { QuestionsManager } from './QuestionsManager';
 import { ExamsManager } from './ExamsManager';
+import { UsersManager } from './UsersManager';
 
-type Tab = 'dashboard' | 'disciplines' | 'questions' | 'exams';
+type Tab = 'dashboard' | 'disciplines' | 'questions' | 'exams' | 'users';
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -65,6 +66,7 @@ export function AdminDashboard() {
     { id: 'disciplines', label: 'Disciplinas', icon: BookOpen },
     { id: 'questions', label: 'Questoes', icon: FileQuestion },
     { id: 'exams', label: 'Simulados', icon: ClipboardList },
+    { id: 'users', label: 'Estudantes', icon: Users },
   ];
 
   return (
@@ -123,6 +125,7 @@ export function AdminDashboard() {
           {activeTab === 'disciplines' && <DisciplinesManager disciplines={disciplines} onUpdate={fetchDisciplines} />}
           {activeTab === 'questions' && <QuestionsManager disciplines={disciplines} />}
           {activeTab === 'exams' && <ExamsManager disciplines={disciplines} />}
+          {activeTab === 'users' && <UsersManager />}
         </main>
       </div>
     </div>
