@@ -94,24 +94,15 @@ export function MaterialsExplorer() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const disciplinesWithMaterials = disciplines.filter(d =>
-    materials.some(m => m.discipline_id === d.id)
-  );
+  // Show full hierarchy — all folders are visible even when empty
+  const disciplinesWithMaterials = disciplines;
 
   const currentDimensions = selectedDiscipline
-    ? dimensions.filter(
-        dim =>
-          dim.discipline_id === selectedDiscipline.id &&
-          materials.some(m => m.dimension_id === dim.id)
-      )
+    ? dimensions.filter(dim => dim.discipline_id === selectedDiscipline.id)
     : [];
 
   const currentThemes = selectedDimension
-    ? themes.filter(
-        t =>
-          t.dimension_id === selectedDimension.id &&
-          materials.some(m => m.theme_id === t.id)
-      )
+    ? themes.filter(t => t.dimension_id === selectedDimension.id)
     : [];
 
   const dimensionGeneralMaterials = selectedDimension
@@ -212,7 +203,7 @@ export function MaterialsExplorer() {
         {level === 'root' && (
           <>
             {disciplinesWithMaterials.length === 0 ? (
-              <EmptyState icon={FolderOpen} message="Nenhum material disponível ainda." />
+              <EmptyState icon={FolderOpen} message="Nenhuma disciplina cadastrada ainda." />
             ) : (
               <div className="divide-y divide-slate-700/30">
                 {disciplinesWithMaterials.map(disc => {
@@ -237,7 +228,9 @@ export function MaterialsExplorer() {
                           {disc.name}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {count} arquivo{count !== 1 ? 's' : ''}
+                          {count > 0
+                            ? `${count} arquivo${count !== 1 ? 's' : ''}`
+                            : 'Pasta vazia'}
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
@@ -253,7 +246,7 @@ export function MaterialsExplorer() {
         {level === 'discipline' && (
           <>
             {currentDimensions.length === 0 ? (
-              <EmptyState icon={Folder} message="Nenhum tópico com materiais." />
+              <EmptyState icon={Folder} message="Nenhum tópico cadastrado para esta disciplina." />
             ) : (
               <div className="divide-y divide-slate-700/30">
                 {currentDimensions.map(dim => {
@@ -272,7 +265,9 @@ export function MaterialsExplorer() {
                           {dim.name}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {count} arquivo{count !== 1 ? 's' : ''}
+                          {count > 0
+                            ? `${count} arquivo${count !== 1 ? 's' : ''}`
+                            : 'Pasta vazia'}
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
@@ -288,7 +283,7 @@ export function MaterialsExplorer() {
         {level === 'dimension' && (
           <>
             {currentThemes.length === 0 && dimensionGeneralMaterials.length === 0 ? (
-              <EmptyState icon={FileText} message="Nenhum arquivo encontrado." />
+              <EmptyState icon={FileText} message="Nenhum subtópico ou arquivo neste tópico." />
             ) : (
               <div className="divide-y divide-slate-700/30">
                 {currentThemes.map(theme => {
@@ -307,7 +302,9 @@ export function MaterialsExplorer() {
                           {theme.name}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {count} arquivo{count !== 1 ? 's' : ''}
+                          {count > 0
+                            ? `${count} arquivo${count !== 1 ? 's' : ''}`
+                            : 'Pasta vazia'}
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
