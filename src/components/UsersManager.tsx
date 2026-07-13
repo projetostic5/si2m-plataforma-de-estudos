@@ -16,6 +16,7 @@ import {
   FileText,
   KeyRound,
   Mail,
+  X,
 } from 'lucide-react';
 
 interface ImportResult {
@@ -33,6 +34,284 @@ interface ParsedUser {
 
 type DeliveryMode = 'password' | 'invite';
 
+// ── Single-user creation modal ────────────────────────────────────────────────
+
+function CreateUserModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<DeliveryMode>('invite');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const isValid = fullName.trim().length >= 2 && email.includes('@');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValid) return;
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/batch-create-users`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+            Apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            users: [{ full_name: fullName.trim(), email: email.trim().toLowerCase() }],
+            sendInvite: mode === 'invite',
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+
+      const { results } = await response.json();
+      setResult(results[0]);
+      if (results[0]?.success) onCreated();
+    } catch (err: any) {
+      setResult({ full_name: fullName, email, success: false, error: err.message, password: null });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyPassword = () => {
+    if (result?.password) {
+      navigator.clipboard.writeText(result.password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Novo Estudante</h3>
+              <p className="text-xs text-slate-400">Criar conta individual</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-700/50"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              Nome Completo
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              disabled={!!result?.success}
+              placeholder="Ex: João da Silva"
+              className="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              disabled={!!result?.success}
+              placeholder="joao.silva@email.com"
+              className="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
+            />
+          </div>
+
+          {/* Delivery mode */}
+          {!result?.success && (
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-2.5">Envio das credenciais</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('invite')}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-left ${
+                    mode === 'invite'
+                      ? 'bg-emerald-500/10 border-emerald-500/40'
+                      : 'bg-slate-900/30 border-slate-700/50 hover:border-slate-600'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    mode === 'invite' ? 'bg-emerald-500/20' : 'bg-slate-700/50'
+                  }`}>
+                    <Mail className={`w-3.5 h-3.5 ${mode === 'invite' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold ${mode === 'invite' ? 'text-emerald-300' : 'text-slate-300'}`}>
+                      Convite
+                    </p>
+                    <p className="text-xs text-slate-500">Link por email</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('password')}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border transition-all text-left ${
+                    mode === 'password'
+                      ? 'bg-amber-500/10 border-amber-500/40'
+                      : 'bg-slate-900/30 border-slate-700/50 hover:border-slate-600'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    mode === 'password' ? 'bg-amber-500/20' : 'bg-slate-700/50'
+                  }`}>
+                    <KeyRound className={`w-3.5 h-3.5 ${mode === 'password' ? 'text-amber-400' : 'text-slate-400'}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-semibold ${mode === 'password' ? 'text-amber-300' : 'text-slate-300'}`}>
+                      Senha temp.
+                    </p>
+                    <p className="text-xs text-slate-500">Gerada aqui</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Result feedback */}
+          {result && (
+            <div className={`rounded-xl border p-4 ${
+              result.success
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              {result.success ? (
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-emerald-300">Estudante criado!</p>
+                    {result.password ? (
+                      <>
+                        <p className="text-xs text-slate-400 mt-1 mb-2">
+                          Senha temporária — repasse ao estudante:
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono text-amber-300 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 flex-1">
+                            {result.password}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={copyPassword}
+                            className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                          >
+                            {copied ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+                        <Mail className="w-3 h-3" />
+                        Convite enviado para <span className="text-white">{result.email}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-300">Erro ao criar estudante</p>
+                    <p className="text-xs text-red-400 mt-1">{result.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            {result?.success ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setResult(null); setFullName(''); setEmail(''); }}
+                  className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors text-sm"
+                >
+                  Criar outro
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors text-sm"
+                >
+                  Concluir
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isValid || loading}
+                  className={`flex-1 py-2.5 text-white rounded-xl font-medium transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    mode === 'invite'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-lg hover:shadow-emerald-500/20'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:shadow-lg hover:shadow-amber-500/20'
+                  }`}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : mode === 'invite' ? (
+                    <><Mail className="w-4 h-4" /> Enviar Convite</>
+                  ) : (
+                    <><KeyRound className="w-4 h-4" /> Criar Conta</>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function UsersManager() {
   const [students, setStudents] = useState<Profile[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
@@ -45,6 +324,7 @@ export function UsersManager() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('invite');
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -184,12 +464,28 @@ export function UsersManager() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white">Gerenciar Estudantes</h2>
-        <p className="text-slate-400 text-sm mt-1">
-          {students.length} estudante{students.length !== 1 ? 's' : ''} cadastrado{students.length !== 1 ? 's' : ''}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Gerenciar Estudantes</h2>
+          <p className="text-slate-400 text-sm mt-1">
+            {students.length} estudante{students.length !== 1 ? 's' : ''} cadastrado{students.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all text-sm"
+        >
+          <UserPlus className="w-4 h-4" />
+          Novo Estudante
+        </button>
       </div>
+
+      {showCreateModal && (
+        <CreateUserModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchStudents}
+        />
+      )}
 
       {/* Import Section */}
       <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
