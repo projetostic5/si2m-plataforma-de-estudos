@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase, Discipline, Exam, Question, ExamQuestion } from '../lib/supabase';
 import {
   Plus,
@@ -13,6 +14,8 @@ import {
   ChevronRight,
   ChevronDown,
   GripVertical,
+  Download,
+  Loader2,
 } from 'lucide-react';
 
 export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
@@ -22,6 +25,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
   const [showQuestionsManager, setShowQuestionsManager] = useState<string | null>(null);
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<ExamQuestion[]>([]);
+  const [exportingTopics, setExportingTopics] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -212,17 +216,124 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
     fetchExamQuestions(showQuestionsManager!);
   };
 
+  const handleExportTopics = async () => {
+    setExportingTopics(true);
+    try {
+      // Fetch topics for both simulados in one query
+      const { data, error } = await supabase
+        .from('exam_questions')
+        .select(`
+          exam:exams!inner(name),
+          question:questions!inner(
+            dimension:dimensions!inner(name),
+            theme:themes!inner(name)
+          )
+        `)
+        .in('exam.name', ['SIMULADO A', 'SIMULADO B']);
+
+      if (error) throw error;
+
+      type Row = { simulado: string; dimensao: string; tema: string };
+      const rows: Row[] = (data || []).map((item: any) => ({
+        simulado: item.exam.name as string,
+        dimensao: item.question.dimension.name as string,
+        tema: item.question.theme.name as string,
+      }));
+
+      // Deduplicate and sort per simulado
+      const dedup = (simulado: string) => {
+        const seen = new Set<string>();
+        return rows
+          .filter(r => r.simulado === simulado)
+          .filter(r => {
+            const key = `${r.dimensao}||${r.tema}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => a.dimensao.localeCompare(b.dimensao) || a.tema.localeCompare(b.tema));
+      };
+
+      const buildSheet = (simulado: string): XLSX.WorkSheet => {
+        const items = dedup(simulado);
+        const aoa: (string | number)[][] = [
+          [simulado, '', ''],
+          ['Tópico', 'Subtópico', 'Nº Questões'],
+          ...items.map(r => {
+            const count = rows.filter(x => x.simulado === simulado && x.dimensao === r.dimensao && x.tema === r.tema).length;
+            return [r.dimensao, r.tema, count];
+          }),
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+        // Column widths
+        ws['!cols'] = [{ wch: 45 }, { wch: 80 }, { wch: 12 }];
+
+        // Merge title row across 3 columns
+        ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+
+        // Style title cell
+        const titleCell = ws['A1'];
+        if (titleCell) {
+          titleCell.s = {
+            font: { bold: true, sz: 14 },
+            alignment: { horizontal: 'center' },
+            fill: { fgColor: { rgb: '1a2f1a' } },
+          };
+        }
+
+        // Style header row
+        ['A2', 'B2', 'C2'].forEach(addr => {
+          const cell = ws[addr];
+          if (cell) {
+            cell.s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: 'dff0d8' } },
+            };
+          }
+        });
+
+        return ws;
+      };
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, buildSheet('SIMULADO A'), 'Simulado A');
+      XLSX.utils.book_append_sheet(wb, buildSheet('SIMULADO B'), 'Simulado B');
+
+      XLSX.writeFile(wb, 'topicos_simulados.xlsx');
+    } catch (err: any) {
+      alert('Erro ao exportar: ' + err.message);
+    } finally {
+      setExportingTopics(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Simulados</h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Simulado
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportTopics}
+            disabled={exportingTopics}
+            className="flex items-center gap-2 px-4 py-2.5 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {exportingTopics ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Exportar Tópicos A/B
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Simulado
+          </button>
+        </div>
       </div>
 
       {/* Form Modal */}
