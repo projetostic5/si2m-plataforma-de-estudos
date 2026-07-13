@@ -34,7 +34,6 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Verify the calling user is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -65,7 +64,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { users }: { users: UserInput[] } = await req.json();
+    const body = await req.json();
+    const users: UserInput[] = body.users;
+    // sendInvite=true → inviteUserByEmail (student sets own password via email link)
+    // sendInvite=false → createUser with generated temp password (shown to admin)
+    const sendInvite: boolean = body.sendInvite === true;
+
     if (!Array.isArray(users) || users.length === 0) {
       return new Response(
         JSON.stringify({ error: "Informe uma lista de usuários válida" }),
@@ -80,37 +84,86 @@ Deno.serve(async (req: Request) => {
       const full_name = u.full_name?.trim();
 
       if (!email || !full_name) {
-        results.push({ email, full_name, success: false, error: "Nome ou email inválido" });
+        results.push({ email, full_name, success: false, error: "Nome ou email inválido", password: null });
         continue;
       }
 
-      const password = u.password?.trim() || generatePassword();
+      let userId: string;
 
-      const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
+      if (sendInvite) {
+        // Invite flow: Supabase sends email with password-reset link
+        const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+          email,
+          { data: { full_name } }
+        );
 
-      if (createError) {
-        results.push({ email, full_name, success: false, error: createError.message, password: null });
+        if (inviteError) {
+          results.push({ email, full_name, success: false, error: inviteError.message, password: null });
+          continue;
+        }
+        userId = invited.user.id;
+      } else {
+        // Temp password flow: admin sees password in UI
+        const password = u.password?.trim() || generatePassword();
+        const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        });
+
+        if (createError) {
+          results.push({ email, full_name, success: false, error: createError.message, password: null });
+          continue;
+        }
+        userId = created.user.id;
+
+        // Check if profile already exists (re-run safety)
+        const { data: existing } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+            id: userId,
+            full_name,
+            role: "student",
+          });
+
+          if (profileError) {
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+            results.push({ email, full_name, success: false, error: profileError.message, password: null });
+            continue;
+          }
+        }
+
+        results.push({ email, full_name, success: true, error: null, password });
         continue;
       }
 
-      const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-        id: created.user.id,
-        full_name,
-        role: "student",
-      });
+      // Insert profile for invite flow
+      const { data: existing } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
 
-      if (profileError) {
-        // Clean up the auth user if profile insert failed
-        await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-        results.push({ email, full_name, success: false, error: profileError.message, password: null });
-        continue;
+      if (!existing) {
+        const { error: profileError } = await supabaseAdmin.from("profiles").insert({
+          id: userId,
+          full_name,
+          role: "student",
+        });
+
+        if (profileError) {
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+          results.push({ email, full_name, success: false, error: profileError.message, password: null });
+          continue;
+        }
       }
 
-      results.push({ email, full_name, success: true, error: null, password });
+      results.push({ email, full_name, success: true, error: null, password: null });
     }
 
     return new Response(
