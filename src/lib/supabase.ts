@@ -104,6 +104,7 @@ export type Exam = {
   passing_score: number;
   is_active: boolean;
   is_public: boolean;
+  counts_for_study_plan: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;

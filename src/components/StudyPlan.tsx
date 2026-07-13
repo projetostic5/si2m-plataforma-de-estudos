@@ -345,11 +345,12 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Find Simulado A and B exams
+      // 1. Find exams marked for study plan
       const { data: exams } = await supabase
         .from('exams')
         .select('id, name')
-        .in('name', ['SIMULADO A', 'SIMULADO B']);
+        .eq('counts_for_study_plan', true)
+        .eq('is_active', true);
 
       if (!exams?.length) {
         setLoading(false);
@@ -508,7 +509,7 @@ export function StudyPlan({ studentProfile }: { studentProfile: StudentProfile |
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Nenhum Simulado Realizado</h3>
         <p className="text-slate-400 text-sm max-w-sm mx-auto">
-          Realize pelo menos um Simulado A ou Simulado B para que o sistema gere seu plano personalizado com base nos tópicos que você precisa revisar.
+          Realize pelo menos um dos simulados disponíveis para que o sistema gere seu plano personalizado com base nos tópicos que você precisa revisar.
         </p>
       </div>
     );

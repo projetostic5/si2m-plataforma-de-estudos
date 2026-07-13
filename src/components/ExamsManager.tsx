@@ -16,6 +16,7 @@ import {
   GripVertical,
   Download,
   Loader2,
+  BookMarked,
 } from 'lucide-react';
 
 export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
@@ -35,6 +36,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
     passing_score: 70,
     is_active: true,
     is_public: true,
+    counts_for_study_plan: false,
   });
 
   useEffect(() => {
@@ -115,6 +117,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
       passing_score: exam.passing_score,
       is_active: exam.is_active,
       is_public: exam.is_public,
+      counts_for_study_plan: exam.counts_for_study_plan ?? false,
     });
     setShowForm(true);
   };
@@ -141,6 +144,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
       passing_score: 70,
       is_active: true,
       is_public: true,
+      counts_for_study_plan: false,
     });
   };
 
@@ -181,7 +185,7 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
     fetchExams();
   };
 
-  const toggleExamStatus = async (examId: string, field: 'is_active' | 'is_public') => {
+  const toggleExamStatus = async (examId: string, field: 'is_active' | 'is_public' | 'counts_for_study_plan') => {
     const exam = exams.find(e => e.id === examId);
     if (!exam) return;
 
@@ -432,6 +436,15 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
                   />
                   <span className="text-sm text-slate-300">Publico</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.counts_for_study_plan}
+                    onChange={(e) => setFormData({ ...formData, counts_for_study_plan: e.target.checked })}
+                    className="w-4 h-4 accent-emerald-500"
+                  />
+                  <span className="text-sm text-slate-300">Conta para Plano de Estudos</span>
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-slate-700">
@@ -617,6 +630,18 @@ export function ExamsManager({ disciplines }: { disciplines: Discipline[] }) {
                       }`}
                     >
                       {exam.is_public ? 'Publico' : 'Privado'}
+                    </button>
+                    <button
+                      onClick={() => toggleExamStatus(exam.id, 'counts_for_study_plan')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        exam.counts_for_study_plan
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'bg-slate-700/50 text-slate-400'
+                      }`}
+                      title="Conta para geração do Plano de Estudos"
+                    >
+                      <BookMarked className="w-3 h-3" />
+                      {exam.counts_for_study_plan ? 'Plano: Sim' : 'Plano: Nao'}
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
