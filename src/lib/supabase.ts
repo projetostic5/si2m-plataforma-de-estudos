@@ -105,6 +105,7 @@ export type Exam = {
   is_active: boolean;
   is_public: boolean;
   counts_for_study_plan: boolean;
+  max_attempts?: number | null;
   created_by: string;
   created_at: string;
   updated_at: string;

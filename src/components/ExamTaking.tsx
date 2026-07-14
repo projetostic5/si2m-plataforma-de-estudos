@@ -27,6 +27,7 @@ export function ExamTaking({
   const [timeLeft, setTimeLeft] = useState(0);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const initializedRef = useRef(false);
@@ -83,6 +84,22 @@ export function ExamTaking({
 
     setExam(examData);
     setTimeLeft(examData.duration_minutes * 60);
+
+    // If the exam has max_attempts, check if the student already completed it
+    if (examData.max_attempts) {
+      const { count: completedCount } = await supabase
+        .from('exam_attempts')
+        .select('id', { count: 'exact', head: true })
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null);
+
+      if (completedCount && completedCount >= examData.max_attempts) {
+        setAlreadyCompleted(true);
+        setLoading(false);
+        return;
+      }
+    }
 
     // Check for existing incomplete attempt
     const { data: existingAttempt } = await supabase
@@ -192,6 +209,28 @@ export function ExamTaking({
 
   const currentQuestion = questions[currentIndex]?.question;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : null;
+
+  if (alreadyCompleted) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Simulado já concluído</h1>
+          <p className="text-slate-400 mb-8">
+            Você já realizou este simulado. Ele pode ser feito apenas uma vez.
+          </p>
+          <button
+            onClick={onCancel}
+            className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors"
+          >
+            Voltar ao painel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !exam || !currentQuestion) {
     return (

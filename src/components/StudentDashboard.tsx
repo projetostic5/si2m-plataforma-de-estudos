@@ -49,6 +49,7 @@ export function StudentDashboard() {
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
   const [recentAttempts, setRecentAttempts] = useState<ExamAttempt[]>([]);
+  const [completedExamIds, setCompletedExamIds] = useState<Set<string>>(new Set());
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
   const [resultAttemptId, setResultAttemptId] = useState<string | null>(null);
 
@@ -60,7 +61,7 @@ export function StudentDashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [profileData, examsData, attemptsData] = await Promise.all([
+    const [profileData, examsData, attemptsData, completedData] = await Promise.all([
       supabase.from('student_profiles').select('*').eq('user_id', user.id).maybeSingle(),
       supabase
         .from('exams')
@@ -83,11 +84,19 @@ export function StudentDashboard() {
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false })
         .limit(5),
+      supabase
+        .from('exam_attempts')
+        .select('exam_id')
+        .eq('user_id', user.id)
+        .not('completed_at', 'is', null),
     ]);
 
     setStudentProfile(profileData.data);
     setExams(examsData.data || []);
     setRecentAttempts(attemptsData.data || []);
+    const completedSet = new Set<string>();
+    (completedData.data || []).forEach((a: { exam_id: string }) => completedSet.add(a.exam_id));
+    setCompletedExamIds(completedSet);
   };
 
   const handleStartExam = (examId: string) => {
@@ -202,10 +211,11 @@ export function StudentDashboard() {
               onStartExam={handleStartExam}
               onViewResult={handleViewResult}
               onConfigureProfile={() => handleNav('profile')}
+              completedExamIds={completedExamIds}
             />
           )}
           {activeTab === 'exams' && (
-            <ExamsList exams={exams} onStartExam={handleStartExam} />
+            <ExamsList exams={exams} onStartExam={handleStartExam} completedExamIds={completedExamIds} />
           )}
           {activeTab === 'history' && (
             <HistoryView attempts={recentAttempts} onViewResult={handleViewResult} />
@@ -236,6 +246,7 @@ function StudentDashboardView({
   onStartExam,
   onViewResult,
   onConfigureProfile,
+  completedExamIds,
 }: {
   studentProfile: StudentProfile | null;
   attempts: ExamAttempt[];
@@ -243,6 +254,7 @@ function StudentDashboardView({
   onStartExam: (id: string) => void;
   onViewResult: (id: string) => void;
   onConfigureProfile: () => void;
+  completedExamIds: Set<string>;
 }) {
   const avgScore = attempts.length > 0
     ? (attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length).toFixed(1)
@@ -379,10 +391,24 @@ function StudentDashboardView({
               </div>
               <button
                 onClick={() => onStartExam(exam.id)}
-                className="w-full py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                disabled={completedExamIds.has(exam.id)}
+                className={`w-full py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                  completedExamIds.has(exam.id)
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`}
               >
-                <Play className="w-4 h-4" />
-                Iniciar Simulado
+                {completedExamIds.has(exam.id) ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Concluído
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Iniciar Simulado
+                  </>
+                )}
               </button>
             </div>
           ))}
@@ -392,7 +418,7 @@ function StudentDashboardView({
   );
 }
 
-function ExamsList({ exams, onStartExam }: { exams: Exam[]; onStartExam: (id: string) => void }) {
+function ExamsList({ exams, onStartExam, completedExamIds }: { exams: Exam[]; onStartExam: (id: string) => void; completedExamIds: Set<string> }) {
   return (
     <div>
       <h2 className="text-2xl font-bold text-white mb-6">Simulados Disponiveis</h2>
@@ -429,10 +455,24 @@ function ExamsList({ exams, onStartExam }: { exams: Exam[]; onStartExam: (id: st
             </div>
             <button
               onClick={() => onStartExam(exam.id)}
-              className="w-full py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+              disabled={completedExamIds.has(exam.id)}
+              className={`w-full py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                completedExamIds.has(exam.id)
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-500 text-white hover:bg-emerald-600'
+              }`}
             >
-              <Play className="w-4 h-4" />
-              Iniciar Simulado
+              {completedExamIds.has(exam.id) ? (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  Concluído
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Iniciar Simulado
+                </>
+              )}
             </button>
           </div>
         ))}
