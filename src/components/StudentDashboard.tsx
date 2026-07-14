@@ -33,7 +33,7 @@ type Tab = 'dashboard' | 'exams' | 'profile' | 'history' | 'studyplan' | 'materi
 export function StudentDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
   useEffect(() => {
@@ -221,7 +221,7 @@ export function StudentDashboard() {
             <HistoryView attempts={recentAttempts} onViewResult={handleViewResult} />
           )}
           {activeTab === 'profile' && (
-            <StudentOnboarding existingProfile={studentProfile} onComplete={fetchData} />
+            <StudentOnboarding existingProfile={studentProfile} onComplete={fetchData} user={user} />
           )}
           {activeTab === 'studyplan' && (
             <StudyPlan studentProfile={studentProfile} />
