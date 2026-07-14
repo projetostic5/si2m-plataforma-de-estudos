@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { supabase, StudentProfile } from '../lib/supabase';
 import {
   Calendar,
@@ -14,9 +13,6 @@ import {
   Check,
   GraduationCap,
   Edit,
-  KeyRound,
-  X,
-  Loader2,
 } from 'lucide-react';
 
 type KnowledgeLevel = 'basic' | 'intermediate' | 'advanced';
@@ -89,14 +85,10 @@ const TOTAL_STEPS = STEP_META.length;
 function ProfileSummary({
   profile,
   onEdit,
-  user,
 }: {
   profile: StudentProfile;
   onEdit: () => void;
-  user: User;
 }) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-
   const knowledgeLabel: Record<string, string> = {
     basic: 'Básico',
     intermediate: 'Intermediário',
@@ -151,22 +143,13 @@ function ProfileSummary({
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Meu Perfil de Estudos</h2>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-            Editar Perfil
-          </button>
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 transition-colors"
-          >
-            <KeyRound className="w-4 h-4" />
-            Alterar Senha
-          </button>
-        </div>
+        <button
+          onClick={onEdit}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+        >
+          <Edit className="w-4 h-4" />
+          Editar Perfil
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -187,181 +170,6 @@ function ProfileSummary({
           </div>
         ))}
       </div>
-
-      {showPasswordModal && (
-        <ChangePasswordModal user={user} onClose={() => setShowPasswordModal(false)} />
-      )}
-    </div>
-  );
-}
-
-// --- Change password modal ---
-
-function validatePassword(pw: string): string | null {
-  if (pw.length < 6) return 'A senha deve ter no mínimo 6 caracteres.';
-  if (!/\d/.test(pw)) return 'A senha deve conter pelo menos um número.';
-  return null;
-}
-
-function ChangePasswordModal({
-  user,
-  onClose,
-}: {
-  user: User;
-  onClose: () => void;
-}) {
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async () => {
-    setError(null);
-
-    if (!currentPassword) {
-      setError('Digite sua senha atual.');
-      return;
-    }
-
-    const pwError = validatePassword(newPassword);
-    if (pwError) {
-      setError(pwError);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('As senhas não coincidem.');
-      return;
-    }
-
-    if (newPassword === currentPassword) {
-      setError('A nova senha deve ser diferente da atual.');
-      return;
-    }
-
-    setLoading(true);
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
-      password: currentPassword,
-    });
-    if (signInError) {
-      setError('Senha atual incorreta.');
-      setLoading(false);
-      return;
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (updateError) {
-      setError(updateError.message);
-      setLoading(false);
-      return;
-    }
-
-    setSuccess(true);
-    setLoading(false);
-  };
-
-  if (success) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-7 h-7 text-emerald-400" />
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">Senha alterada!</h3>
-          <p className="text-slate-400 mb-6">Sua senha foi atualizada com sucesso.</p>
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 transition-colors"
-          >
-            Fechar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-center">
-              <KeyRound className="w-5 h-5 text-emerald-400" />
-            </div>
-            <h3 className="text-xl font-bold text-white">Alterar Senha</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Senha atual</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-              placeholder="••••••••"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Nova senha</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-              placeholder="Mínimo 6 caracteres, 1 número"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirmar nova senha</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none transition-colors"
-              placeholder="••••••••"
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Alterando...
-              </>
-            ) : (
-              'Alterar Senha'
-            )}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -371,11 +179,9 @@ function ChangePasswordModal({
 export function StudentOnboarding({
   existingProfile,
   onComplete,
-  user,
 }: {
   existingProfile: StudentProfile | null;
   onComplete: () => void;
-  user: User;
 }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -439,7 +245,6 @@ export function StudentOnboarding({
     return (
       <ProfileSummary
         profile={existingProfile}
-        user={user}
         onEdit={() => {
           setCurrentStep(1);
           setEditing(true);
