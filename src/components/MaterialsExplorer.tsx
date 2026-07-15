@@ -128,7 +128,7 @@ export function MaterialsExplorer() {
           <FolderOpen className="w-5 h-5 text-emerald-400" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Materiais de Apoio</h2>
+          <h2 className="text-2xl font-bold text-white">Materiais de Apoio <span className="text-base font-normal text-slate-400">(Em Construção)</span></h2>
           <p className="text-sm text-slate-400">Navegue e baixe os materiais de estudo</p>
         </div>
       </div>
