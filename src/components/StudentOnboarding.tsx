@@ -27,19 +27,9 @@ interface OnboardingData {
   has_limitations: boolean;
 }
 
-const getDefaultExamDate = (): string => {
-  const d = new Date();
-  d.setDate(d.getDate() + 30);
-  return d.toISOString().split('T')[0];
-};
+const DEFAULT_EXAM_DATE = '2026-07-31';
 
 const STEP_META = [
-  {
-    Icon: Calendar,
-    title: 'Data da próxima prova',
-    question: 'Qual é a data prevista para a sua próxima prova ou exame?',
-    hint: 'Se ainda não sabe ao certo, usaremos 30 dias a partir de hoje como padrão.',
-  },
   {
     Icon: Clock,
     title: 'Horas disponíveis por dia',
@@ -188,7 +178,7 @@ export function StudentOnboarding({
   const [editing, setEditing] = useState(!existingProfile?.onboarding_completed);
 
   const [data, setData] = useState<OnboardingData>({
-    next_exam_date: existingProfile?.next_exam_date || getDefaultExamDate(),
+    next_exam_date: existingProfile?.next_exam_date || DEFAULT_EXAM_DATE,
     hours_per_day: existingProfile?.hours_per_day || 3,
     knowledge_level: (existingProfile?.knowledge_level as KnowledgeLevel) || 'intermediate',
     preferred_study_model: existingProfile?.preferred_study_model || '',
@@ -199,13 +189,12 @@ export function StudentOnboarding({
 
   const canProceed = (): boolean => {
     switch (currentStep) {
-      case 1: return !!data.next_exam_date;
-      case 2: return data.hours_per_day >= 2 && data.hours_per_day <= 6;
-      case 3: return !!data.knowledge_level;
-      case 4: return data.preferred_study_model.trim().length > 0;
-      case 5: return data.is_working !== null && data.is_working !== undefined;
-      case 6: return data.sleep_hours >= 4;
-      case 7: return data.has_limitations !== null && data.has_limitations !== undefined;
+      case 1: return data.hours_per_day >= 2 && data.hours_per_day <= 6;
+      case 2: return !!data.knowledge_level;
+      case 3: return data.preferred_study_model.trim().length > 0;
+      case 4: return data.is_working !== null && data.is_working !== undefined;
+      case 5: return data.sleep_hours >= 4;
+      case 6: return data.has_limitations !== null && data.has_limitations !== undefined;
       default: return true;
     }
   };
@@ -247,6 +236,7 @@ export function StudentOnboarding({
         profile={existingProfile}
         onEdit={() => {
           setCurrentStep(1);
+          setData((d) => ({ ...d, next_exam_date: d.next_exam_date || DEFAULT_EXAM_DATE }));
           setEditing(true);
         }}
       />
@@ -299,19 +289,8 @@ export function StudentOnboarding({
 
         {/* Step input */}
         <div className="pl-16">
-          {/* Step 1 — Date */}
+          {/* Step 1 — Hours per day */}
           {currentStep === 1 && (
-            <input
-              type="date"
-              value={data.next_exam_date}
-              onChange={(e) => setData({ ...data, next_exam_date: e.target.value })}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-3.5 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-lg"
-            />
-          )}
-
-          {/* Step 2 — Hours per day */}
-          {currentStep === 2 && (
             <div className="grid grid-cols-5 gap-3">
               {[2, 3, 4, 5, 6].map((h) => (
                 <button
@@ -330,8 +309,8 @@ export function StudentOnboarding({
             </div>
           )}
 
-          {/* Step 3 — Knowledge level */}
-          {currentStep === 3 && (
+          {/* Step 2 — Knowledge level */}
+          {currentStep === 2 && (
             <div className="space-y-3">
               {([
                 { id: 'basic', label: 'Básico', desc: 'Ainda estou aprendendo os fundamentos da disciplina' },
@@ -372,8 +351,8 @@ export function StudentOnboarding({
             </div>
           )}
 
-          {/* Step 4 — Study model */}
-          {currentStep === 4 && (
+          {/* Step 3 — Study model */}
+          {currentStep === 3 && (
             <div>
               <textarea
                 value={data.preferred_study_model}
@@ -389,8 +368,8 @@ export function StudentOnboarding({
             </div>
           )}
 
-          {/* Step 5 — Working */}
-          {currentStep === 5 && (
+          {/* Step 4 — Working */}
+          {currentStep === 4 && (
             <div className="grid grid-cols-2 gap-4">
               {[
                 {
@@ -427,8 +406,8 @@ export function StudentOnboarding({
             </div>
           )}
 
-          {/* Step 6 — Sleep hours */}
-          {currentStep === 6 && (
+          {/* Step 5 — Sleep hours */}
+          {currentStep === 5 && (
             <div className="grid grid-cols-4 gap-3">
               {[4, 5, 6, 7, 8, 9, 10, 11].map((h) => (
                 <button
@@ -447,8 +426,8 @@ export function StudentOnboarding({
             </div>
           )}
 
-          {/* Step 7 — Limitations */}
-          {currentStep === 7 && (
+          {/* Step 6 — Limitations */}
+          {currentStep === 6 && (
             <div className="grid grid-cols-2 gap-4">
               {[
                 {
