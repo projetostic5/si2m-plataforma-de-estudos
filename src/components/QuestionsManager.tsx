@@ -12,6 +12,8 @@ import {
   Eye,
   Edit,
   Trash2,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { QuestionsImporter } from './QuestionsImporter';
 
@@ -25,6 +27,7 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDiscipline, setFilterDiscipline] = useState('');
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
+  const [recalculatingId, setRecalculatingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     discipline_id: '',
@@ -105,13 +108,20 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
     const { data: { user } } = await supabase.auth.getUser();
 
     if (editingQuestion) {
-      await supabase
+      const { data: updated } = await supabase
         .from('questions')
         .update({
           ...formData,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', editingQuestion.id);
+        .eq('id', editingQuestion.id)
+        .select()
+        .single();
+
+      // If the correct answer changed, recalculate scores for affected students
+      if (updated && updated.correct_answer !== editingQuestion.correct_answer) {
+        await recalculateScores(updated.id);
+      }
     } else {
       await supabase.from('questions').insert({
         ...formData,
@@ -142,6 +152,37 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
     fetchDimensions(question.discipline_id);
     fetchThemes(question.dimension_id);
     setShowForm(true);
+  };
+
+  const recalculateScores = async (questionId: string) => {
+    setRecalculatingId(questionId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recalculate-scores`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ question_id: questionId }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        alert('Erro ao recalcular notas: ' + (json.error || 'falha desconhecida'));
+      } else {
+        alert(`Notas recalculadas com sucesso!\n${json.updated_answers} respostas atualizadas, ${json.updated_attempts} tentativas recalculadas.`);
+      }
+    } catch (err) {
+      alert('Erro ao recalcular notas: ' + (err instanceof Error ? err.message : 'erro desconhecido'));
+    } finally {
+      setRecalculatingId(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -488,6 +529,18 @@ export function QuestionsManager({ disciplines }: { disciplines: Discipline[] })
                     className="p-2 text-slate-400 hover:text-amber-400 transition-colors"
                   >
                     <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => recalculateScores(question.id)}
+                    disabled={recalculatingId === question.id}
+                    title="Recalcular notas dos alunos"
+                    className="p-2 text-slate-400 hover:text-cyan-400 transition-colors disabled:opacity-50"
+                  >
+                    {recalculatingId === question.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
                   </button>
                   <button
                     onClick={() => handleDelete(question.id)}
