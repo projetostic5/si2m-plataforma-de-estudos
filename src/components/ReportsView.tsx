@@ -94,6 +94,36 @@ export function ReportsView() {
 
   const formatPct = (v: number | null) => (v === null ? '-' : `${v.toFixed(1)}%`);
 
+  const exportSubtopicErrors = async () => {
+    try {
+      const { data: rows, error: queryError } = await supabase.rpc('get_subtopic_error_report');
+      if (queryError) throw queryError;
+      if (!rows || rows.length === 0) {
+        alert('Nenhum dado de simulado encontrado.');
+        return;
+      }
+
+      const header = 'Tópico;Subtópico;Percentual de erros nas respostas dos simulados';
+      const lines = rows.map(
+        (r: { topico: string; subtopico: string; percentual_erros: number }) =>
+          `${r.topico};${r.subtopico};${r.percentual_erros}`,
+      );
+      const csv = '\uFEFF' + [header, ...lines].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'relatorio_subtopicos_erros.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao exportar relatório de subtópicos');
+    }
+  };
+
   const exportPDF = (section: 'completed' | 'pending') => {
     const students = section === 'completed' ? completedStudents : pendingStudents;
     const title =
@@ -244,8 +274,14 @@ export function ReportsView() {
         <FilterButton active={filter === 'pending'} onClick={() => setFilter('pending')} icon={Clock} label={`Pendentes (${pendingStudents.length})`} />
       </div>
 
-      {/* Export button */}
-      <div className="flex justify-end mb-4">
+      {/* Export buttons */}
+      <div className="flex justify-end gap-3 mb-4">
+        <button
+          onClick={exportSubtopicErrors}
+          className="flex items-center gap-2 px-4 py-2.5 bg-sky-500 text-white rounded-xl font-medium hover:bg-sky-600 transition-colors shadow-lg shadow-sky-500/30"
+        >
+          <Download className="w-4 h-4" /> Exportar CSV de Subtópicos
+        </button>
         <button
           onClick={() => exportPDF(filter)}
           className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30"
